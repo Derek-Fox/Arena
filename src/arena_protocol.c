@@ -180,6 +180,18 @@ static void cmd_msg(player_info* player, char* target, char* msg) {
     }
 }
 
+
+static void cmd_broadcast(player_info* player, char* msg, char* rest) {
+    if (player->state != PLAYER_REG) {
+        send_err(player, "Player must be logged in before BROADCAST");
+    } else if (msg == NULL) {
+        send_err(player, "BROADCAST should have an message");
+    } else {
+        send_ok(player, "");
+        // iterate over all players. if they are in the same arena, send a MSG
+    }
+}
+
 /************************************************************************
  * Handle the "BYE" command. Takes no arguments, but not picky. Sends OK
  * on success, and unregisters the player (which will result in them being

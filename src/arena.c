@@ -3,7 +3,6 @@
  * command received from the client over to the arena_protocol module
  * which will handle the actual communication protocol between clients
  * (players) and the server.
- * TODO: Search everywhere for things that might need error handling and do it!
  */
 #define _GNU_SOURCE
 
