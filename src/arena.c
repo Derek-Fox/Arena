@@ -16,6 +16,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "arena_protocol.h"
 #include "player.h"
@@ -129,27 +130,26 @@ void *handle_player(void *newplayer) {
  * then executes them.
  */
 void *notif_manager(void *none) {
-    int pret = 0;
-    if ((pret = pthread_detach(pthread_self())) != 0) {
-        perror("pthread_detach");
-        exit(1);
-    }
-
     while (1) {
-        job *newjob = queue_dequeue_wait();
+        job *job = queue_dequeue_wait();
 
-        if (newjob->type == MSG) {
-            player_info *target = playerlist_findplayer(newjob->to);
-            player_info *origin = playerlist_findplayer(newjob->origin);
+        if (job->type == DONE) {
+            destroyjob(job);
+            break;
+        }
+
+        if (job->type == MSG) {
+            player_info *target = playerlist_findplayer(job->to);
+            player_info *origin = playerlist_findplayer(job->origin);
             if (target != NULL && target->in_room == origin->in_room && target != origin) {
                 char *msg;
-                asprintf(&msg, "From %s: %s", newjob->origin, newjob->content);
+                asprintf(&msg, "From %s: %s", job->origin, job->content);
                 send_notice(target, msg);
                 free(msg);
             }
-        } else if (newjob->type == JOIN) {
-            int newroom = (int)strtol(newjob->to, NULL, 0);
-            player_info *mover = playerlist_findplayer(newjob->origin);
+        } else if (job->type == JOIN) {
+            int newroom = (int)strtol(job->to, NULL, 0);
+            player_info *mover = playerlist_findplayer(job->origin);
             char *response;
             int size = playerlist_getsize();
             for (size_t i = 0; i < size; i++) {
@@ -164,9 +164,9 @@ void *notif_manager(void *none) {
                     free(response);
                 }
             }
-        } else if (newjob->type == LEAVE) {
-            int oldroom = (int)strtol(newjob->to, NULL, 0);
-            player_info *mover = playerlist_findplayer(newjob->origin);
+        } else if (job->type == LEAVE) {
+            int oldroom = (int)strtol(job->to, NULL, 0);
+            player_info *mover = playerlist_findplayer(job->origin);
             char *response;
             int size = playerlist_getsize();
             for (size_t i = 0; i < size; i++) {
@@ -182,7 +182,7 @@ void *notif_manager(void *none) {
                 }
             }
         }
-        destroyjob(newjob);
+        destroyjob(job);
     }
 
     pthread_exit(NULL);
@@ -190,14 +190,14 @@ void *notif_manager(void *none) {
 
 /************************************************************************
  * Signal handler for SIGINT to allow server to exit more gracefully.
- * QUESTION: is there a good way to also kill notification manager and all
- * active player threads using this variable? Because they are currently
- * blocking while waiting for input (either something to go onto queue, or
- * for player to enter a command/disconnect). LOW PRIORITY!!!!
+ * TODO: is there a good way to also kill all active player threads using this variable? 
+ * Because they are currently blocking while waiting for input (for player to enter a command/disconnect).
  */
 volatile sig_atomic_t done = 0;
 void terminate_server(int sig) {
     done = 1;
+    job* job = newjob(DONE, NULL, NULL, NULL);
+    queue_enqueue(job);
     return;
 }
 
@@ -236,7 +236,7 @@ int main(int argc, char *argv[]) {
     struct sockaddr_storage client_addr;
     socklen_t client_addr_len = sizeof(client_addr);
     int comm_fd;
-    while ((comm_fd = accept(sock_fd, (struct sockaddr *)&client_addr, &client_addr_len)) >= 0 && !done) {
+    while ((comm_fd = accept(sock_fd, (struct sockaddr *)&client_addr, &client_addr_len)) >= 0 && !done) {        
         printf("Got connection from %s\n",
                inet_ntoa(((struct sockaddr_in *)&client_addr)->sin_addr));
 
@@ -249,6 +249,8 @@ int main(int argc, char *argv[]) {
             exit(1);
         }
     }
+
+    pthread_join(notif, NULL);
 
     queue_destroy();
     playerlist_destroy();

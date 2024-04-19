@@ -1,4 +1,13 @@
 # Protocol:
+## Overview:
+This document outlines the protocol for the chat server. The server is a simple chat server that allows users to login, move between arenas, and send messages to other users in the same arena. The server is implemented in C and uses TCP sockets for communication. The server is single-threaded and can handle multiple clients concurrently by creating a new thread for each client. The server uses a simple text-based protocol for communication with clients. The protocol is line-based, with each command being sent on a new line. The server will respond to each command with a status message, followed by any additional data if necessary. The server will close the connection if the client sends an invalid command or disconnects unexpectedly.
+
+## Status Messages:
+The server will respond to each command with a status message. The status message will be one of the following:
+- `OK`: The command was successful.
+- `ERROR`: There was an error processing the command.
+- `NOTICE`: A message from the server to the client.
+
 ## Commands:
 
 ### HELP
@@ -26,7 +35,7 @@
 
 ### STAT
 - **Description**: Get the current arena that the user is in.
-- **Usage`: `STAT`
+- **Usage**: `STAT`
 - **Notes**: 
     - User must be logged in.
     - Server will respond with `OK` followed by the number of the arena the user is currently in.
@@ -63,3 +72,5 @@
     - User must be logged in.
     - Server will respond with `OK` if the message was sent successfully.
     - All users in the arena will be notified with a `NOTICE`, followed by the sender's name and message.
+
+

@@ -4,11 +4,11 @@
  * Bulk of code from CSC 362 week 9 examples
  */
 
+#include "queue.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "queue.h"
 
 queue* jobq;
 
@@ -103,39 +103,48 @@ void queue_destroy() {
  */
 job* newjob(int type, char* to, char* content, char* origin) {
     job* result = NULL;
-    if((result = malloc(sizeof(job))) == NULL) {
+    if ((result = malloc(sizeof(job))) == NULL) {
         perror("malloc job");
         exit(1);
     }
 
     result->type = type;
 
-    char* temp2 = NULL;
-    if((temp2 = malloc(strlen(to) + 1)) == NULL) {
-        perror("malloc job->to");
-        exit(1);
+    if (to != NULL) {
+        char* temp2 = NULL;
+        if ((temp2 = malloc(strlen(to) + 1)) == NULL) {
+            perror("malloc job->to");
+            exit(1);
+        }
+        result->to = temp2;
+        strcpy(result->to, to);
+    } else {
+        result->to = NULL;
     }
-    result->to = temp2;
-    strcpy(result->to, to);
 
     if (content != NULL) {  // possible for JOIN/LEAVE commands
         char* temp3 = NULL;
-        if((temp3 = malloc(strlen(content) + 1)) == NULL) {
+        if ((temp3 = malloc(strlen(content) + 1)) == NULL) {
             perror("malloc job->content");
+            exit(1);
         }
         result->content = temp3;
         strcpy(result->content, content);
     } else {
-        result->content = NULL; //just to be sure (and so valgrind doesn't complain)
+        result->content = NULL;
     }
 
-    char* temp4 = NULL; 
-    if((temp4 = malloc(strlen(origin) + 1)) == NULL) {
-        perror("malloc job->origin");
-        exit(1);
+    if (origin != NULL) {
+        char* temp4 = NULL;
+        if ((temp4 = malloc(strlen(origin) + 1)) == NULL) {
+            perror("malloc job->origin");
+            exit(1);
+        }
+        result->origin = temp4;
+        strcpy(result->origin, origin);
+    } else {
+        result->origin = NULL;
     }
-    result->origin = temp4;
-    strcpy(result->origin, origin);
 
     return result;
 }
