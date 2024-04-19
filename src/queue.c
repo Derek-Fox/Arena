@@ -101,20 +101,14 @@ void queue_destroy() {
  * Create a new job struct, fully allocated and initialized with desired
  * values. See struct definition for more info on fields.
  */
-job* newjob(char* type, char* to, char* content, char* origin) {
+job* newjob(int type, char* to, char* content, char* origin) {
     job* result = NULL;
     if((result = malloc(sizeof(job))) == NULL) {
         perror("malloc job");
         exit(1);
     }
 
-    char* temp1 = NULL;
-    if((temp1 = malloc(strlen(type) + 1)) == NULL) {
-        perror("malloc job->type");
-        exit(1);
-    }
-    result->type = temp1;
-    strcpy(result->type, type);
+    result->type = type;
 
     char* temp2 = NULL;
     if((temp2 = malloc(strlen(to) + 1)) == NULL) {
@@ -150,7 +144,6 @@ job* newjob(char* type, char* to, char* content, char* origin) {
  * Frees all fields of this job and the job itself.
  */
 void destroyjob(job* job) {
-    free(job->type);
     free(job->to);
     if (job->content != NULL) {
         free(job->content);

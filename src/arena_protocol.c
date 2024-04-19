@@ -80,7 +80,7 @@ static void cmd_login(player_info* player, char* newname, char* rest) {
             free(response);
 
             /* Notify everyone in the lobby that player just joined. */
-            job* job = newjob("JOIN", "0", NULL, player->name);
+            job* job = newjob(JOIN, "0", NULL, player->name);
             queue_enqueue(job);
         }
     }
@@ -113,8 +113,8 @@ static void cmd_moveto(player_info* player, char* room, char* rest) {
 
         player->in_room = newroom;
 
-        job* job1 = newjob("JOIN", room, NULL, player->name);
-        job* job2 = newjob("LEAVE", oldroom, NULL, player->name);
+        job* job1 = newjob(JOIN, room, NULL, player->name);
+        job* job2 = newjob(LEAVE, oldroom, NULL, player->name);
         free(oldroom);
 
         queue_enqueue(job1);
@@ -179,7 +179,7 @@ static void cmd_msg(player_info* player, char* target, char* msg) {
         send_err(player, "MSG should have 2 arguments");
     } else {
         send_ok(player, "");
-        job* job = newjob("MSG", target, msg, player->name);
+        job* job = newjob(MSG, target, msg, player->name);
         queue_enqueue(job);
     }
 }
@@ -206,7 +206,7 @@ static void cmd_broadcast(player_info* player, char* msg, char* rest) {
         for (size_t i = 0; i < size; i++) {
             player_info* curr = playerlist_get(i);
             if (curr->in_room == player->in_room) {
-                job* job = newjob("MSG", curr->name, newmsg, player->name);
+                job* job = newjob(MSG, curr->name, newmsg, player->name);
                 queue_enqueue(job);
             }
         }
@@ -279,7 +279,7 @@ void docommand(player_info* player, char* command) {
     } else if (strcmp(cmd, "BROADCAST") == 0) {
         cmd_broadcast(player, arg1, rest);
     } else if (strcmp(cmd, "HELP") == 0) {
-        send_notice(player, "Commands: LOGIN, MOVETO, BYE, MSG, STAT, LIST, BROADCAST, HELP");
+        send_ok(player, "Commands: LOGIN, MOVETO, BYE, MSG, STAT, LIST, BROADCAST, HELP");
     } else {
         send_err(player, "Unknown command");
     }

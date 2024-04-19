@@ -1,5 +1,12 @@
 # Protocol:
 ## Commands:
+
+### HELP
+- **Description**: Get a list of all available commands.
+- **Usage**: `HELP`
+- **Notes**: 
+    - Server will respond with `OK` followed by a list of all available commands.
+
 ### LOGIN
 - **Description**: Login to the server with a given username.
 - **Usage**: `LOGIN <username>`
@@ -22,7 +29,7 @@
 - **Usage`: `STAT`
 - **Notes**: 
     - User must be logged in.
-    - Server will respond with `OK` followed by the number of the arena the user is currently in. (The lobby is arena 0)
+    - Server will respond with `OK` followed by the number of the arena the user is currently in.
 
 ### LIST
 - **Description**: List all users currently in the arena.
@@ -41,7 +48,7 @@
     - All users in the new arena will be notified that the user has joined with a `NOTICE`.
 
 ### MSG
-- **Description**: Send a message to a user in the arena.
+- **Description**: Send a message to a user in the current arena.
 - **Usage**: `MSG <username> <message>`
 - **Notes**: 
     - User must be logged in.
@@ -50,7 +57,7 @@
     - The user receiving the message will be notified with a `NOTICE`, followed by the sender's name and message.
 
 ### BROADCAST
-- **Description**: Send a message to all users in the arena.
+- **Description**: Send a message to all users in the current arena.
 - **Usage**: `BROADCAST <message>`
 - **Notes**: 
     - User must be logged in.

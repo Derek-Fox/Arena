@@ -6,19 +6,19 @@
  */
 #define _GNU_SOURCE
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
+#include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
 #include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <unistd.h>
 
-#include "player.h"
 #include "arena_protocol.h"
+#include "player.h"
 #include "playerlist.h"
 #include "queue.h"
 
@@ -138,7 +138,7 @@ void *notif_manager(void *none) {
     while (1) {
         job *newjob = queue_dequeue_wait();
 
-        if (strcmp(newjob->type, "MSG") == 0) {
+        if (newjob->type == MSG) {
             player_info *target = playerlist_findplayer(newjob->to);
             player_info *origin = playerlist_findplayer(newjob->origin);
             if (target != NULL && target->in_room == origin->in_room && target != origin) {
@@ -147,7 +147,7 @@ void *notif_manager(void *none) {
                 send_notice(target, msg);
                 free(msg);
             }
-        } else if (strcmp(newjob->type, "JOIN") == 0) {
+        } else if (newjob->type == JOIN) {
             int newroom = (int)strtol(newjob->to, NULL, 0);
             player_info *mover = playerlist_findplayer(newjob->origin);
             char *response;
@@ -164,7 +164,7 @@ void *notif_manager(void *none) {
                     free(response);
                 }
             }
-        } else if (strcmp(newjob->type, "LEAVE") == 0) {
+        } else if (newjob->type == LEAVE) {
             int oldroom = (int)strtol(newjob->to, NULL, 0);
             player_info *mover = playerlist_findplayer(newjob->origin);
             char *response;
@@ -228,7 +228,7 @@ int main(int argc, char *argv[]) {
     queue_init();
     pthread_t notif;
     int pret = 0;
-    if((pret = pthread_create(&notif, NULL, notif_manager, NULL)) < 0) {
+    if ((pret = pthread_create(&notif, NULL, notif_manager, NULL)) < 0) {
         perror("pthread_create");
         exit(1);
     }
@@ -236,9 +236,7 @@ int main(int argc, char *argv[]) {
     struct sockaddr_storage client_addr;
     socklen_t client_addr_len = sizeof(client_addr);
     int comm_fd;
-    while ((comm_fd = accept(sock_fd, (struct sockaddr *)&client_addr,
-                             &client_addr_len)) >= 0 &&
-           !done) {
+    while ((comm_fd = accept(sock_fd, (struct sockaddr *)&client_addr, &client_addr_len)) >= 0 && !done) {
         printf("Got connection from %s\n",
                inet_ntoa(((struct sockaddr_in *)&client_addr)->sin_addr));
 
