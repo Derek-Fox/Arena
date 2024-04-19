@@ -157,7 +157,7 @@ static void cmd_list(player_info* player, char* arg1, char* rest) {
             if (curr->in_room == player->in_room) {
                 char* temp;
                 asprintf(&temp, "%s%s,", response, curr->name);
-                free(response);  // free the old response
+                free(response);   // free the old response
                 response = temp;  // assign the new string to response
             }
         }
@@ -184,6 +184,11 @@ static void cmd_msg(player_info* player, char* target, char* msg) {
     }
 }
 
+/*******************************************************************
+ * Handle the "BROADCAST" command. Takes one argument, the message to
+ * broadcast. Sends OK on success, as well as notifying all players in
+ * the same room with the broadcasted message.
+ */
 static void cmd_broadcast(player_info* player, char* msg, char* rest) {
     if (player->state != PLAYER_REG) {
         send_err(player, "Player must be logged in before BROADCAST");
@@ -225,6 +230,37 @@ static void cmd_broadcast(player_info* player, char* msg, char* rest) {
 static void cmd_bye(player_info* player, char* arg1, char* rest) {
     send_ok(player, "");
     player->state = PLAYER_DONE;
+}
+
+/************************************************************************
+ * Handle the "HELP" command. Takes one optional argument, the command to
+ * get help on. If no argument, lists all commands. If argument, gives help
+ * on that command.
+ */
+static void cmd_help(player_info* player, char* cmd, char* rest) {
+    if (cmd == NULL) {
+        send_notice(player, "Commands: LOGIN, MOVETO, BYE, MSG, STAT, LIST, BROADCAST, HELP");
+    } else {
+        if (strcmp(cmd, "LOGIN") == 0) {
+            send_notice(player, "LOGIN <name> - log in with a name");
+        } else if (strcmp(cmd, "MOVETO") == 0) {
+            send_notice(player, "MOVETO <arena> - move to a different arena");
+        } else if (strcmp(cmd, "BYE") == 0) {
+            send_notice(player, "BYE - log out and exit the game");
+        } else if (strcmp(cmd, "MSG") == 0) {
+            send_notice(player, "MSG <target> <message> - send a message to another player");
+        } else if (strcmp(cmd, "STAT") == 0) {
+            send_notice(player, "STAT - get the current arena number");
+        } else if (strcmp(cmd, "LIST") == 0) {
+            send_notice(player, "LIST - list all players in the current arena");
+        } else if (strcmp(cmd, "BROADCAST") == 0) {
+            send_notice(player, "BROADCAST <message> - send a message to all players in the current arena");
+        } else if (strcmp(cmd, "HELP") == 0) {
+            send_notice(player, "HELP [command] - get help on a command, or list all commands");
+        } else {
+            send_err(player, "Unknown command");
+        }
+    }
 }
 
 /************************************************************************
@@ -279,7 +315,7 @@ void docommand(player_info* player, char* command) {
     } else if (strcmp(cmd, "BROADCAST") == 0) {
         cmd_broadcast(player, arg1, rest);
     } else if (strcmp(cmd, "HELP") == 0) {
-        send_ok(player, "Commands: LOGIN, MOVETO, BYE, MSG, STAT, LIST, BROADCAST, HELP");
+        cmd_help(player, arg1, rest);
     } else {
         send_err(player, "Unknown command");
     }
