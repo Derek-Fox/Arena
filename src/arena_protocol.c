@@ -8,16 +8,17 @@
  */
 #define _GNU_SOURCE
 
+#include "arena_protocol.h"
+
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 
-#include "util.h"
 #include "player.h"
-#include "arena_protocol.h"
 #include "playerlist.h"
 #include "queue.h"
+#include "util.h"
 
 /************************************************************************
  * Call this response function if an error can be described by a simple
@@ -107,7 +108,7 @@ static void cmd_moveto(player_info* player, char* room, char* rest) {
     } else if (*endptr != '\0' || newroom < 0 || newroom > 4) {  // need valid arg
         send_err(player, "Invalid arena number");
     } else {
-        char* oldroom; // Save old room BEFORE changing it
+        char* oldroom;  // Save old room BEFORE changing it
         asprintf(&oldroom, "%d", player->in_room);
 
         player->in_room = newroom;
@@ -149,17 +150,20 @@ static void cmd_list(player_info* player, char* arg1, char* rest) {
         send_err(player, "LIST should have no arguments");
     } else {  // all good
         int size = playerlist_getsize();
-        char* response = "";
+        char* response = strdup("");  // initialize response with an empty string
         /* for each player in list, if in same room, append to response string */
         for (size_t i = 0; i < size; i++) {
             player_info* curr = playerlist_get(i);
             if (curr->in_room == player->in_room) {
-                asprintf(&response, "%s%s,", response, curr->name);
+                char* temp;
+                asprintf(&temp, "%s%s,", response, curr->name);
+                free(response);  // free the old response
+                response = temp;  // assign the new string to response
             }
         }
         response[strlen(response) - 1] = '\0';  // remove trailing comma
         send_ok(player, response);
-        free(response);
+        free(response);  // free the final response string
     }
 }
 
@@ -180,7 +184,6 @@ static void cmd_msg(player_info* player, char* target, char* msg) {
     }
 }
 
-
 static void cmd_broadcast(player_info* player, char* msg, char* rest) {
     if (player->state != PLAYER_REG) {
         send_err(player, "Player must be logged in before BROADCAST");
@@ -188,7 +191,29 @@ static void cmd_broadcast(player_info* player, char* msg, char* rest) {
         send_err(player, "BROADCAST should have an message");
     } else {
         send_ok(player, "");
+
+        // concat msg and rest, if rest is not null. otherwise, just use msg
+        char* newmsg;
+        if (rest != NULL) {
+            asprintf(&newmsg, "%s %s", msg, rest);
+            msg = newmsg;
+        } else {
+            newmsg = msg;
+        }
+
         // iterate over all players. if they are in the same arena, send a MSG
+        int size = playerlist_getsize();
+        for (size_t i = 0; i < size; i++) {
+            player_info* curr = playerlist_get(i);
+            if (curr->in_room == player->in_room) {
+                job* job = newjob("MSG", curr->name, newmsg, player->name);
+                queue_enqueue(job);
+            }
+        }
+
+        if (rest != NULL) {
+            free(newmsg);
+        }
     }
 }
 
@@ -251,6 +276,10 @@ void docommand(player_info* player, char* command) {
         cmd_stat(player, arg1, rest);
     } else if (strcmp(cmd, "LIST") == 0) {
         cmd_list(player, arg1, rest);
+    } else if (strcmp(cmd, "BROADCAST") == 0) {
+        cmd_broadcast(player, arg1, rest);
+    } else if (strcmp(cmd, "HELP") == 0) {
+        send_notice(player, "Commands: LOGIN, MOVETO, BYE, MSG, STAT, LIST, BROADCAST, HELP");
     } else {
         send_err(player, "Unknown command");
     }
