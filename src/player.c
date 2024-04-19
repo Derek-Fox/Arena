@@ -13,6 +13,7 @@
 void player_init(player_info* player, FILE *fp_send, FILE *fp_recv) {
     player->name[0] = '\0';
     player->state = PLAYER_UNREG;
+    player->power = 0;
     player->in_room = 0;
     player->fp_send = fp_send;
     player->fp_recv = fp_recv;

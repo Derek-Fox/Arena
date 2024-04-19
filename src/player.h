@@ -10,12 +10,7 @@
 
 #define PLAYER_MAXNAME 20
 
-// These are the valid states of a player. The numbers don't mean
-// anything, and just need to be all different. Note that a more
-// "modern" way of doing this would be to use an "enum", but most C
-// programmers stick to this old-fashioned way of doing things - so we
-// will too!
-
+// These are the valid states of a player.
 #define PLAYER_UNREG 0
 #define PLAYER_REG 1
 #define PLAYER_DONE 2
@@ -26,6 +21,7 @@
 typedef struct player_info {
     char name[PLAYER_MAXNAME+1];
     int state;
+    int power;
     int in_room;
     FILE* fp_send;
     FILE* fp_recv;

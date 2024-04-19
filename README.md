@@ -73,4 +73,9 @@ The server will respond to each command with a status message. The status messag
     - Server will respond with `OK` if the message was sent successfully.
     - All users in the arena will be notified with a `NOTICE`, followed by the sender's name and message.
 
-
+### WHOAMI
+- **Description**: Get the username and stats of the current user.
+- **Usage**: `WHOAMI`
+- **Notes**: 
+    - User must be logged in.
+    - Server will respond with `OK` followed by the username of the current user.

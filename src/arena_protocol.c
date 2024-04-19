@@ -233,6 +233,23 @@ static void cmd_bye(player_info* player, char* arg1, char* rest) {
 }
 
 /************************************************************************
+ * Handle the "WHOAMI" command. Takes no arguments. Sends OK with the
+ * player's name and power level.
+ */
+static void cmd_whoami(player_info* player, char* arg1, char* rest) {
+    if (player->state != PLAYER_REG) {
+        send_err(player, "Player must be logged in before WHOAMI");
+    } else if (arg1 != NULL) {  // need no args
+        send_err(player, "WHOAMI should have no arguments");
+    } else {  // all good
+        char* response;
+        asprintf(&response, "%s: %d", player->name, player->power);
+        send_ok(player, response);
+        free(response);
+    }
+}
+
+/************************************************************************
  * Handle the "HELP" command. Takes one optional argument, the command to
  * get help on. If no argument, lists all commands. If argument, gives help
  * on that command.
@@ -257,6 +274,8 @@ static void cmd_help(player_info* player, char* cmd, char* rest) {
             send_notice(player, "BROADCAST <message> - send a message to all players in the current arena");
         } else if (strcmp(cmd, "HELP") == 0) {
             send_notice(player, "HELP [command] - get help on a command, or list all commands");
+        } else if (strcmp(cmd, "WHOAMI") == 0) {
+            send_notice(player, "WHOAMI - get your own name and power level");
         } else {
             send_err(player, "Unknown command");
         }
@@ -316,6 +335,8 @@ void docommand(player_info* player, char* command) {
         cmd_broadcast(player, arg1, rest);
     } else if (strcmp(cmd, "HELP") == 0) {
         cmd_help(player, arg1, rest);
+    } else if (strcmp(cmd, "WHOAMI") == 0) {
+        cmd_whoami(player, arg1, rest);
     } else {
         send_err(player, "Unknown command");
     }
