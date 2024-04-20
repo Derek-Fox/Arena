@@ -22,7 +22,7 @@ PROGRAMS = arena
 # math library. It's OK to leave either or both of the LDFLAGS and LDLIBS
 # definitions out.
 
-arena_OBJS = arena.o util.o arena_protocol.o player.o alist.o playerlist.o queue.o
+arena_OBJS = arena.o util.o arena_protocol.o player.o alist.o playerlist.o queue.o game.o
 
 
 ############################################################################

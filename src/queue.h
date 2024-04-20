@@ -10,6 +10,10 @@
 #define MSG 1
 #define JOIN 2
 #define LEAVE 3
+#define CHALLENGE 4
+#define ACCEPT 5
+#define REJECT 6
+#define RESULT 7
 
 // Data types and function prototypes for a queue of jobs structure
 

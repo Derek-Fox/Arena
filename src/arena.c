@@ -7,6 +7,7 @@
 #define _GNU_SOURCE
 
 #include <arpa/inet.h>
+#include <errno.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <signal.h>
@@ -16,7 +17,6 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <errno.h>
 
 #include "arena_protocol.h"
 #include "player.h"
@@ -181,6 +181,41 @@ void *notif_manager(void *none) {
                     free(response);
                 }
             }
+        } else if (job->type == CHALLENGE) {
+            player_info *challenger = playerlist_findplayer(job->origin);
+            player_info *target = playerlist_findplayer(job->to);
+            if (target != NULL && challenger != target && challenger->in_room == target->in_room) {
+                char *response;
+                asprintf(&response, "%s has challenged you. Please ACCEPT or REJECT.", challenger->name);
+                send_notice(target, response);
+                free(response);
+            }
+        } else if (job->type == ACCEPT) {
+            player_info *accepter = playerlist_findplayer(job->origin);
+            player_info *challenger = playerlist_findplayer(accepter->challenge_from);
+            if (challenger != NULL && accepter != challenger && accepter->in_room == challenger->in_room) {
+                char *response;
+                asprintf(&response, "%s has accepted your challenge. Let the battle begin!", accepter->name);
+                send_notice(challenger, response);
+                free(response);
+            }
+        } else if (job->type == REJECT) {
+            player_info *rejecter = playerlist_findplayer(job->origin);
+            player_info *challenger = playerlist_findplayer(rejecter->challenge_from);
+            if (challenger != NULL && rejecter != challenger && rejecter->in_room == challenger->in_room) {
+                char *response;
+                asprintf(&response, "%s has rejected your challenge.", rejecter->name);
+                send_notice(challenger, response);
+                free(response);
+            }
+        } else if (job->type == RESULT) {
+            player_info *winner = playerlist_findplayer(job->to);
+            player_info *loser = playerlist_findplayer(job->content);
+            char *response;
+            asprintf(&response, "%s has defeated %s in the battle!", winner->name, loser->name);
+            send_notice(winner, response);
+            send_notice(loser, response);
+            free(response);
         }
         destroyjob(job);
     }
@@ -190,13 +225,13 @@ void *notif_manager(void *none) {
 
 /************************************************************************
  * Signal handler for SIGINT to allow server to exit more gracefully.
- * TODO: is there a good way to also kill all active player threads using this variable? 
+ * TODO: is there a good way to also kill all active player threads using this variable?
  * Because they are currently blocking while waiting for input (for player to enter a command/disconnect).
  */
 volatile sig_atomic_t done = 0;
 void terminate_server(int sig) {
     done = 1;
-    job* job = newjob(DONE, NULL, NULL, NULL);
+    job *job = newjob(DONE, NULL, NULL, NULL);
     queue_enqueue(job);
     return;
 }
@@ -236,7 +271,7 @@ int main(int argc, char *argv[]) {
     struct sockaddr_storage client_addr;
     socklen_t client_addr_len = sizeof(client_addr);
     int comm_fd;
-    while ((comm_fd = accept(sock_fd, (struct sockaddr *)&client_addr, &client_addr_len)) >= 0 && !done) {        
+    while ((comm_fd = accept(sock_fd, (struct sockaddr *)&client_addr, &client_addr_len)) >= 0 && !done) {
         printf("Got connection from %s\n",
                inet_ntoa(((struct sockaddr_in *)&client_addr)->sin_addr));
 

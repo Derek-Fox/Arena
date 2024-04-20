@@ -19,6 +19,7 @@
 #include "playerlist.h"
 #include "queue.h"
 #include "util.h"
+#include "game.h"
 
 /************************************************************************
  * Call this response function if an error can be described by a simple
@@ -282,6 +283,63 @@ static void cmd_help(player_info* player, char* cmd, char* rest) {
     }
 }
 
+static void cmd_challenge(player_info* player, char* target, char* rest) {
+    if (player->state != PLAYER_REG) {
+        send_err(player, "Player must be logged in before CHALLENGE");
+    } else if (target == NULL || rest != NULL) {
+        send_err(player, "CHALLENGE should have one argument");
+    } else {
+        send_ok(player, "");
+        job* job = newjob(CHALLENGE, target, NULL, player->name);
+        player_info* target_player = playerlist_findplayer(target);
+        target_player->challenge_pending = true;
+        free(target_player->challenge_from);
+        target_player->challenge_from = strdup(player->name);
+        queue_enqueue(job);
+    }
+}
+
+static void cmd_accept(player_info* player, char* arg1, char* rest) {
+    if (player->state != PLAYER_REG) {
+        send_err(player, "Player must be logged in before ACCEPT");
+    } else if (arg1 != NULL) {
+        send_err(player, "ACCEPT should have no arguments");
+    } else if (player->challenge_pending == false) {
+        send_err(player, "No challenge pending");
+    } else {
+        send_ok(player, "");
+        job* job1 = newjob(ACCEPT, NULL, NULL, player->name);
+        queue_enqueue(job1);
+
+        player_info* player2 = playerlist_findplayer(player->challenge_from);
+        int winner = run_game(player, player2);
+        job* job2;
+        if (winner == 1) {
+            job2 = newjob(RESULT, player->name, player2->name, player->name);
+        } else {
+            job2 = newjob(RESULT, player2->name, player->name, player->name);
+        }
+        queue_enqueue(job2);
+
+        player->challenge_pending = false;
+    }
+}
+
+static void cmd_reject(player_info* player, char* arg1, char* rest) {
+    if (player->state != PLAYER_REG) {
+        send_err(player, "Player must be logged in before REJECT");
+    } else if (arg1 != NULL) {
+        send_err(player, "REJECT should have no arguments");
+    } else if (player->challenge_pending == false) {
+        send_err(player, "No challenge pending");
+    } else {
+        send_ok(player, "");
+        job* job = newjob(REJECT, NULL, NULL, player->name);
+        queue_enqueue(job);
+        player->challenge_pending = false;
+    }
+}
+
 /************************************************************************
  * Parses and performs the actions in the line of text (command and
  * optionally arguments) passed in as "command".
@@ -337,6 +395,12 @@ void docommand(player_info* player, char* command) {
         cmd_help(player, arg1, rest);
     } else if (strcmp(cmd, "WHOAMI") == 0) {
         cmd_whoami(player, arg1, rest);
+    } else if (strcmp(cmd, "CHALLENGE") == 0) {
+        cmd_challenge(player, arg1, rest);
+    } else if (strcmp(cmd, "ACCEPT") == 0) {
+        cmd_accept(player, arg1, rest);
+    } else if (strcmp(cmd, "REJECT") == 0) {
+        cmd_reject(player, arg1, rest);
     } else {
         send_err(player, "Unknown command");
     }
