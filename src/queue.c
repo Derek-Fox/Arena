@@ -101,7 +101,7 @@ void queue_destroy() {
  * Create a new job struct, fully allocated and initialized with desired
  * values. See struct definition for more info on fields.
  */
-job* newjob(int type, char* to, char* content, char* origin) {
+job* newjob(JobType type, char* to, char* content, char* origin) {
     job* result = NULL;
     if ((result = malloc(sizeof(job))) == NULL) {
         perror("malloc job");

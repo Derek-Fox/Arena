@@ -13,7 +13,7 @@
 void player_init(player_info* player, FILE *fp_send, FILE *fp_recv) {
     player->name[0] = '\0';
     player->state = PLAYER_UNREG;
-    player->power = 0;
+    player->power = 1;
     player->challenge_pending = false;
     player->challenge_from = strdup("");
     player->in_room = 0;

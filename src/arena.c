@@ -212,7 +212,7 @@ void *notif_manager(void *none) {
             player_info *winner = playerlist_findplayer(job->to);
             player_info *loser = playerlist_findplayer(job->content);
             char *response;
-            asprintf(&response, "%s has defeated %s in the battle!", winner->name, loser->name);
+            asprintf(&response, "%s has defeated %s in the duel!", winner->name, loser->name);
             send_notice(winner, response);
             send_notice(loser, response);
             free(response);
