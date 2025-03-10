@@ -11,10 +11,11 @@ The server will respond to each command with a status message. The status messag
 ## Commands:
 
 ### HELP
-- **Description**: Get a list of all available commands.
-- **Usage**: `HELP`
+- **Description**: Get a list of all available commands or get help on a specific command.
+- **Usage**: `HELP [command]`
 - **Notes**: 
-    - Server will respond with `OK` followed by a list of all available commands.
+    - If no command is specified, the server will respond with `OK` followed by a list of all available commands.
+    - If a command is specified, the server will respond with `OK` followed by a description of the specified command.
 
 ### LOGIN
 - **Description**: Login to the server with a given username.
@@ -79,3 +80,29 @@ The server will respond to each command with a status message. The status messag
 - **Notes**: 
     - User must be logged in.
     - Server will respond with `OK` followed by the username of the current user.
+
+### CHALLENGE
+- **Description**: Challenge another player to a duel.
+- **Usage**: `CHALLENGE <username>`
+- **Notes**: 
+    - User must be logged in.
+    - The target player must be in the same arena as the user.
+    - Server will respond with `OK` if the challenge was sent successfully.
+    - The target player will be notified with a `NOTICE` about the challenge.
+
+### ACCEPT
+- **Description**: Accept an incoming challenge from another player.
+- **Usage**: `ACCEPT`
+- **Notes**: 
+    - User must be logged in.
+    - User must have a pending challenge.
+    - Server will respond with `OK` and start the duel.
+    - The winner will be determined based on each player's power level.
+
+### REJECT
+- **Description**: Reject an incoming challenge from another player.
+- **Usage**: `REJECT`
+- **Notes**: 
+    - User must be logged in.
+    - User must have a pending challenge.
+    - Server will respond with `OK` and notify the challenger that the challenge was rejected.
