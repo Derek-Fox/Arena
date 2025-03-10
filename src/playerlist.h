@@ -8,8 +8,8 @@
 #include "player.h"
 
 typedef struct {
-    alist* parrlist;
-    pthread_rwlock_t lock;
+  alist* parrlist;
+  pthread_rwlock_t lock;
 } playerlist;
 
 void playerlist_init();

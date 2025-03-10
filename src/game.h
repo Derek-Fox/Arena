@@ -6,4 +6,3 @@
 int run_game(player_info* player1, player_info* player2);
 
 #endif
-

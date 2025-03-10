@@ -3,11 +3,11 @@
  * module.
  */
 
-#include <string.h>
+#include "util.h"
+
 #include <ctype.h>
 #include <stdlib.h>
-
-#include "util.h"
+#include <string.h>
 
 /************************************************************************
  * "trim" is like the Java "trim" String method (or the "strip"
@@ -19,30 +19,26 @@
  * (i.e., not with a string literal).
  */
 char* trim(char* line) {
-    int llen = strlen(line);
-    if (llen > 0) {
-        char* final = &line[llen - 1];
-        while ((final >= line) && isspace(*final))
-            final--;
-        *(final + 1) = '\0';
-    }
+  int llen = strlen(line);
+  if (llen > 0) {
+    char* final = &line[llen - 1];
+    while ((final >= line) && isspace(*final)) final--;
+    *(final + 1) = '\0';
+  }
 
-    while (isspace(*line))
-        line++;
+  while (isspace(*line)) line++;
 
-    return line;
+  return line;
 }
 
 /************************************************************************
  * Checks if a string is alphanumeric.
  */
 int strisalnum(char* str) {
-    for (size_t i = 0; i < strlen(str); i++) {
-        if (!isalnum(str[i])) {
-            return 0;
-        }
+  for (size_t i = 0; i < strlen(str); i++) {
+    if (!isalnum(str[i])) {
+      return 0;
     }
-    return 1;
+  }
+  return 1;
 }
-
-

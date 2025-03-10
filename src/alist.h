@@ -4,14 +4,14 @@
 
 #include <pthread.h>
 
-#define DEF_CAPACITY 10 //default capacity
+#define DEF_CAPACITY 10  // default capacity
 
 typedef struct {
-    void** data;   // Array of pointers to arraylist items
-    int capacity;  // How big is the data array
-    int in_use;    // How many items are in use (items 0..in_use-1)
-    void (*dfree)(void* data); // Data destructor/freer
-    pthread_rwlock_t lock;
+  void** data;                // Array of pointers to arraylist items
+  int capacity;               // How big is the data array
+  int in_use;                 // How many items are in use (items 0..in_use-1)
+  void (*dfree)(void* data);  // Data destructor/freer
+  pthread_rwlock_t lock;
 } alist;
 
 // Function prototypes

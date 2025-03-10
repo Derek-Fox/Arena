@@ -3,6 +3,6 @@
 #define _UTIL_H
 
 char* trim(char* line);
-int strisalnum(char * str);
+int strisalnum(char* str);
 
 #endif  // _UTIL_H

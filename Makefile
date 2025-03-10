@@ -1,34 +1,8 @@
-# Makefile for Weekly Assignment 9 (Threads)
-
-# The "CFLAGS" are included every time the compiler is invoked, whether
-# compiling a .c to a .o or linking the .o's to an executable
-
-# A weakness of this Makefile: You can't specify different CFLAGS for
-# different .c files -- so you couldn't make some with "-pthread" and
-# some without, for example. Since this Makefile is for CSC 362 and we
-# won't ever need that, it should be a big deal...
-
 CFLAGS = -Wall -g -pthread
-
-# The names of all the programs to build
 
 PROGRAMS = arena
 
-# For each program (named "program" for example) you must have a variable
-# named "program_OBJS" that lists the .o files needed for that program
-# Optimally, you may also have program_LDFLAGS and program_LDLIBS for
-# flags and libraries that are needed in the linking stage. For example,
-# you could include "program_LDLIBS = -lm" if your program needs the
-# math library. It's OK to leave either or both of the LDFLAGS and LDLIBS
-# definitions out.
-
 arena_OBJS = arena.o util.o arena_protocol.o player.o alist.o playerlist.o queue.o game.o
-
-
-############################################################################
-# Makefile magic below here. CSC 362 students don't need to change anything
-# below here. If you DO decide to mess with this, you better be very, very
-# careful and understand what you're doing!
 
 OBJS_DIR = build
 BINS_DIR = bin
@@ -59,7 +33,6 @@ $(foreach prog,$(PROGRAMS),$(eval $(call PROGRAM_template,$(prog))))
 $(OBJS_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJS_DIR)
 	$(CC) -c -o $@ $(CFLAGS) -MMD -MP $< $(LDFLAGS)
 
-# Note for curious students: *~ is a "backup file" from the emacs editor...
 .PHONY: clean
 clean:
 	rm -rf $(OBJS_DIR) $(BINS_DIR) *~ */*~
