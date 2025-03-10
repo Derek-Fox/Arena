@@ -190,7 +190,7 @@ void *notif_manager(void *none) {
       if (target != NULL && challenger != target &&
           challenger->in_room == target->in_room) {
         char *response;
-        asprintf(&response, "%s has challenged you. Please ACCEPT or REJECT.",
+        asprintf(&response, "%s has challenged you to a duel. Please ACCEPT or REJECT.",
                  challenger->name);
         send_notice(target, response);
         free(response);

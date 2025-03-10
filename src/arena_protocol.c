@@ -15,7 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "game.h"
+#include "duel.h"
 #include "player.h"
 #include "playerlist.h"
 #include "queue.h"
@@ -270,7 +270,7 @@ static void cmd_help(player_info* player, char* cmd, char* rest) {
     } else if (strcmp(cmd, "MOVETO") == 0) {
       send_notice(player, "MOVETO <arena> - move to a different arena");
     } else if (strcmp(cmd, "BYE") == 0) {
-      send_notice(player, "BYE - log out and exit the game");
+      send_notice(player, "BYE - log out and exit the server");
     } else if (strcmp(cmd, "MSG") == 0) {
       send_notice(player,
                   "MSG <target> <message> - send a message to another player");
@@ -346,18 +346,14 @@ static void cmd_accept(player_info* player, char* arg1, char* rest) {
     queue_enqueue(job1);
 
     player_info* player2 = playerlist_findplayer(player->challenge_from);
-    int winner = run_game(player, player2);
+    int winner = execute_duel(player, player2);
     job* job2;
     if (winner == 1) {
       job2 = newjob(RESULT, player->name, player2->name, player->name);
-      player->power++;
-      player2->power--;
-      if (player2->power < 1) player2->power = 1;
+      award_power(player, player2);
     } else {
       job2 = newjob(RESULT, player2->name, player->name, player->name);
-      player2->power++;
-      player->power--;
-      if (player->power < 1) player->power = 1;
+      award_power(player2, player);
     }
     queue_enqueue(job2);
 

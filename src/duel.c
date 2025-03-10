@@ -1,4 +1,4 @@
-#include "game.h"
+#include "duel.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,15 +9,11 @@
 #include "playerlist.h"
 
 /**********************************************************
- * Run the game between two players. Return 1 if p1 wins, 2 if p2 wins.
+ * Run the duel between two players. Return 1 if p1 wins, 2 if p2 wins.
  * Randomly choose a player to win based on their power level. Higher power =
  * greater chance to win.
  */
-int run_game(player_info* player1, player_info* player2) {
-  fprintf(player1->fp_send, "Determining the winner...\n");
-  fprintf(player2->fp_send, "Determining the winner...\n");
-
-  sleep(1);
+int execute_duel(player_info* player1, player_info* player2) {
   // Initialize random number generator
   srand(time(NULL));
 
@@ -29,4 +25,10 @@ int run_game(player_info* player1, player_info* player2) {
   } else {
     return 2;
   }
+}
+
+void award_power(player_info* winner, player_info* loser) {
+  winner->power++;
+  loser->power--;
+  if (loser->power < 1) loser->power = 1;
 }
