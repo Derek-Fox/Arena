@@ -9,6 +9,7 @@
 #define _GNU_SOURCE
 
 #define MAX_RESPONSE_LEN 256
+#define MAX_MSG_LEN 200
 
 #include "arena_protocol.h"
 
@@ -202,6 +203,8 @@ static void cmd_msg(player_info* player, char* target, char* msg) {
     send_err(player, "Player must be logged in before MSG");
   } else if (target == NULL || msg == NULL) {
     send_err(player, "MSG should have 2 arguments");
+  } else if (strlen(msg) > MAX_MSG_LEN) {
+    send_err(player, "Message too long. Max length is %d", MAX_MSG_LEN);
   } else {
     send_ok(player, "");
     job* job = newjob(JOB_MSG, target, msg, player->name);
@@ -220,8 +223,6 @@ static void cmd_broadcast(player_info* player, char* msg, char* rest) {
   } else if (msg == NULL) {
     send_err(player, "BROADCAST should have a message");
   } else {
-    send_ok(player, "");
-
     // concat msg and rest, if rest is not null. otherwise, just use msg
     char* newmsg;
     if (rest != NULL) {
@@ -230,7 +231,13 @@ static void cmd_broadcast(player_info* player, char* msg, char* rest) {
     } else {
       newmsg = msg;
     }
+    if (strlen(newmsg) > MAX_MSG_LEN) {
+      send_err(player, "Message too long. Max length is %d", MAX_MSG_LEN);
+      if (rest != NULL) free(newmsg);
+      return;
+    }
 
+    send_ok(player, "");
     // iterate over all players. if they are in the same arena, send a MSG
     int size = playerlist_getsize();
     for (size_t i = 0; i < size; i++) {
