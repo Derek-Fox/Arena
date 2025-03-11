@@ -8,26 +8,16 @@
 #include "player.h"
 #include "playerlist.h"
 
-#define MIN_POW 1
-#define MAX_POW 100
+#define MIN_POWER 1
+#define MAX_POWER 100
 
-/**********************************************************
- * Run the duel between two players. Return 1 if p1 wins, 2 if p2 wins.
- * Randomly choose a player to win based on their power level. Higher power =
- * greater chance to win.
- */
 int execute_duel(player_info* player1, player_info* player2) {
-  // Initialize random number generator
-  srand(time(NULL));
-
-  int total_power = player1->power + player2->power;
-  int random_value = rand() % total_power;
-
-  if (random_value < player1->power) {
-    return 1;
-  } else {
-    return 2;
-  }
+  char *lineptr = NULL;
+  size_t linesize = 0;
+  getline(&lineptr, &linesize, player1->fp_recv);
+  fprintf(player1->fp_send, "You chose %s", lineptr);
+  free(lineptr);
+  return 1;
 }
 
 /************************************************************
@@ -35,6 +25,6 @@ int execute_duel(player_info* player1, player_info* player2) {
  * Ensure player's power levels stay within bounds. 
  */
 void award_power(player_info* winner, player_info* loser) {
-  if (winner->power < MAX_POW) winner->power++;
-  if (loser->power > MIN_POW) loser->power--;
+  if (winner->power < MAX_POWER) winner->power++;
+  if (loser->power > MIN_POWER) loser->power--;
 }

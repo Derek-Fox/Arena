@@ -19,6 +19,7 @@
 #include <unistd.h>
 
 #include "arena_protocol.h"
+#include "duel.h"
 #include "player.h"
 #include "playerlist.h"
 #include "queue.h"
@@ -192,19 +193,33 @@ void *notif_manager(void *none) {
               target,
               "%s has challenged you to a duel. Please ACCEPT or REJECT",
               challenger->name);
+          
+          target->duel_status = DUEL_PENDING;
+          free(target->opponent_name);
+          target->opponent_name = strdup(challenger->name);
+
+          challenger->duel_status = DUEL_PENDING;
+          free(challenger->opponent_name);
+          challenger->opponent_name = strdup(target->name);
+          
         }
         break;
       }
 
       case JOB_ACCEPT: {
         player_info *accepter = playerlist_findplayer(job->origin);
-        player_info *challenger =
-            playerlist_findplayer(accepter->challenge_from);
+        player_info *challenger = playerlist_findplayer(accepter->opponent_name);
         if (challenger != NULL && accepter != challenger &&
             accepter->in_room == challenger->in_room) {
           send_notice(challenger,
                       "%s has accepted your challenge. Let the battle begin!",
                       accepter->name);
+
+          accepter->duel_status = DUEL_ACTIVE;
+          challenger->duel_status = DUEL_ACTIVE;
+
+          send_notice(challenger, "Please CHOOSE rock, paper, or scissors.");
+          send_notice(accepter, "Please CHOOSE rock, paper, or scissors.");
         }
         break;
       }
@@ -212,11 +227,13 @@ void *notif_manager(void *none) {
       case JOB_REJECT: {
         player_info *rejecter = playerlist_findplayer(job->origin);
         player_info *challenger =
-            playerlist_findplayer(rejecter->challenge_from);
+            playerlist_findplayer(rejecter->opponent_name);
         if (challenger != NULL && rejecter != challenger &&
             rejecter->in_room == challenger->in_room) {
           send_notice(challenger, "%s has rejected your challenge.",
                       rejecter->name);
+          rejecter->duel_status = DUEL_NONE;
+          challenger->duel_status= DUEL_NONE;
         }
         break;
       }

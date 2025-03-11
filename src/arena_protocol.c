@@ -16,7 +16,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "duel.h"
 #include "player.h"
 #include "playerlist.h"
 #include "queue.h"
@@ -26,7 +25,8 @@
  * Helper function to send a response with a specified type and format string
  * with optional args.
  */
-static void send_response(player_info* player, const char* type, const char* format, va_list args) {
+static void send_response(player_info* player, const char* type,
+                          const char* format, va_list args) {
   char response[MAX_RESPONSE_LEN];
   vsnprintf(response, MAX_RESPONSE_LEN, format, args);
   fprintf(player->fp_send, "%s %s\n", type, response);
@@ -349,18 +349,12 @@ static void cmd_challenge(player_info* player, char* target, char* rest) {
     send_err(player, "Player must be logged in before CHALLENGE");
   } else if (target == NULL || rest != NULL) {
     send_err(player, "CHALLENGE should have one argument");
+  } else if (player->duel_status == DUEL_PENDING) {
+    send_err(player, "Already have pending challenge with %s", player->opponent_name);
   } else {
-    player_info* target_player = playerlist_findplayer(target);
-    if (target_player == NULL) {
-      send_err(player, "CHALLENGE sent to non-existent player.");
-    } else {
-      send_ok(player, "");
-      job* job = newjob(JOB_CHALLENGE, target, NULL, player->name);
-      target_player->challenge_pending = true;
-      free(target_player->challenge_from);
-      target_player->challenge_from = strdup(player->name);
-      queue_enqueue(job);
-    }
+    send_ok(player, "");
+    job* job = newjob(JOB_CHALLENGE, target, NULL, player->name);
+    queue_enqueue(job);
   }
 }
 
@@ -373,26 +367,12 @@ static void cmd_accept(player_info* player, char* arg1, char* rest) {
     send_err(player, "Player must be logged in before ACCEPT");
   } else if (arg1 != NULL) {
     send_err(player, "ACCEPT should have no arguments");
-  } else if (player->challenge_pending == false) {
+  } else if (player->duel_status != DUEL_PENDING) {
     send_err(player, "No challenge pending");
   } else {
     send_ok(player, "");
     job* job1 = newjob(JOB_ACCEPT, NULL, NULL, player->name);
     queue_enqueue(job1);
-
-    player_info* player2 = playerlist_findplayer(player->challenge_from);
-    int winner = execute_duel(player, player2);
-    job* job2;
-    if (winner == 1) {
-      job2 = newjob(JOB_RESULT, player->name, player2->name, player->name);
-      award_power(player, player2);
-    } else {
-      job2 = newjob(JOB_RESULT, player2->name, player->name, player->name);
-      award_power(player2, player);
-    }
-    queue_enqueue(job2);
-
-    player->challenge_pending = false;
   }
 }
 
@@ -405,13 +385,43 @@ static void cmd_reject(player_info* player, char* arg1, char* rest) {
     send_err(player, "Player must be logged in before REJECT");
   } else if (arg1 != NULL) {
     send_err(player, "REJECT should have no arguments");
-  } else if (player->challenge_pending == false) {
+  } else if (player->duel_status != DUEL_PENDING) {
     send_err(player, "No challenge pending");
   } else {
     send_ok(player, "");
     job* job = newjob(JOB_REJECT, NULL, NULL, player->name);
     queue_enqueue(job);
-    player->challenge_pending = false;
+  }
+}
+
+
+static void cmd_choose(player_info* player, char* choice, char* rest) {
+  if (player->state != PLAYER_REG) {
+    send_err(player, "Player must be logged in before CHOOSE");
+  } else if (choice == NULL) {
+    send_err(player, "CHOOSE needs one argument.");
+  } else if (player->duel_status != DUEL_ACTIVE) {
+    send_err(player, "You do not have an active duel. If you have a pending duel, they must ACCEPT.");
+  } else {
+    RPS rps = parse_choice(choice);
+    if (rps == NULL) {
+      send_err(player, "Invalid choice. Choose from rock, paper, or scissors.");
+      return;
+    }
+    send_ok(player, "%s", choice);
+    player->choice = rps;
+  }
+}
+
+static RPS parse_choice(const char* choice) {
+  if (strcmp(choice, "rock") == 0) {
+    return RPS_ROCK;
+  } else if (strcmp(choice, "paper") == 0) {
+    return RPS_PAPER;
+  } else if (strcmp(choice, "scissors") == 0) {
+    return RPS_SCISSORS;
+  } else {
+    return NULL;
   }
 }
 
@@ -474,6 +484,8 @@ void docommand(player_info* player, char* command) {
     cmd_accept(player, arg1, rest);
   } else if (strcmp(cmd, "REJECT") == 0) {
     cmd_reject(player, arg1, rest);
+  } else if (strcmp(cmd, "CHOOSE") == 0) {
+    cmd_choose(player, arg1, rest);
   } else {
     send_err(player, "Unknown command");
   }

@@ -14,8 +14,9 @@ void player_init(player_info *player, FILE *fp_send, FILE *fp_recv) {
   player->name[0] = '\0';
   player->state = PLAYER_UNREG;
   player->power = 1;
-  player->challenge_pending = false;
-  player->challenge_from = strdup("");
+  player->duel_status = DUEL_NONE;
+  player->choice = NULL;
+  player->opponent_name = strdup("");
   player->in_room = 0;
   player->fp_send = fp_send;
   player->fp_recv = fp_recv;
@@ -54,5 +55,5 @@ void player_destroy(void *player) {
   ((player_info *)player)->state = PLAYER_DONE;  // Just to make sure....
   fclose(((player_info *)player)->fp_send);
   fclose(((player_info *)player)->fp_recv);
-  free(((player_info *)player)->challenge_from);
+  free(((player_info *)player)->opponent_name);
 }
