@@ -23,16 +23,24 @@
 #include "util.h"
 
 /************************************************************************
+ * Helper function to send a response with a specified type and format string
+ * with optional args.
+ */
+static void send_response(player_info* player, const char* type, const char* format, va_list args) {
+  char response[MAX_RESPONSE_LEN];
+  vsnprintf(response, MAX_RESPONSE_LEN, format, args);
+  fprintf(player->fp_send, "%s %s\n", type, response);
+}
+
+/************************************************************************
  * Response function to send an ERR followed by format string with optional
  * args.
  */
 void send_err(player_info* player, const char* format, ...) {
-  char response[MAX_RESPONSE_LEN];
   va_list args;
   va_start(args, format);
-  vsnprintf(response, MAX_RESPONSE_LEN, format, args);
+  send_response(player, "ERR", format, args);
   va_end(args);
-  fprintf(player->fp_send, "ERR %s\n", response);
 }
 
 /************************************************************************
@@ -40,12 +48,10 @@ void send_err(player_info* player, const char* format, ...) {
  * with optional args.
  */
 void send_ok(player_info* player, const char* format, ...) {
-  char response[MAX_RESPONSE_LEN];
   va_list args;
   va_start(args, format);
-  vsnprintf(response, MAX_RESPONSE_LEN, format, args);
+  send_response(player, "OK", format, args);
   va_end(args);
-  fprintf(player->fp_send, "OK %s\n", response);
 }
 
 /************************************************************************
@@ -53,12 +59,10 @@ void send_ok(player_info* player, const char* format, ...) {
  * with optional args.
  */
 void send_notice(player_info* player, const char* format, ...) {
-  char response[MAX_RESPONSE_LEN];
   va_list args;
   va_start(args, format);
-  vsnprintf(response, MAX_RESPONSE_LEN, format, args);
+  send_response(player, "NOTICE", format, args);
   va_end(args);
-  fprintf(player->fp_send, "NOTICE %s\n", response);
 }
 
 /************************************************************************
