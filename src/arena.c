@@ -134,12 +134,12 @@ void *notif_manager(void *none) {
     job *job = queue_dequeue_wait();
 
     switch (job->type) {
-      case DONE:
+      case JOB_DONE:
         destroyjob(job);
         pthread_exit(NULL);
         break;
 
-      case MSG: {
+      case JOB_MSG: {
         player_info *target = playerlist_findplayer(job->to);
         player_info *origin = playerlist_findplayer(job->origin);
         if (target != NULL && target->in_room == origin->in_room &&
@@ -149,7 +149,7 @@ void *notif_manager(void *none) {
         break;
       }
 
-      case JOIN: {
+      case JOB_JOIN: {
         int newroom = (int)strtol(job->to, NULL, 0);
         player_info *mover = playerlist_findplayer(job->origin);
         int size = playerlist_getsize();
@@ -166,7 +166,7 @@ void *notif_manager(void *none) {
         break;
       }
 
-      case LEAVE: {
+      case JOB_LEAVE: {
         int oldroom = (int)strtol(job->to, NULL, 0);
         player_info *mover = playerlist_findplayer(job->origin);
         int size = playerlist_getsize();
@@ -183,7 +183,7 @@ void *notif_manager(void *none) {
         break;
       }
 
-      case CHALLENGE: {
+      case JOB_CHALLENGE: {
         player_info *challenger = playerlist_findplayer(job->origin);
         player_info *target = playerlist_findplayer(job->to);
         if (target != NULL && challenger != target &&
@@ -196,7 +196,7 @@ void *notif_manager(void *none) {
         break;
       }
 
-      case ACCEPT: {
+      case JOB_ACCEPT: {
         player_info *accepter = playerlist_findplayer(job->origin);
         player_info *challenger =
             playerlist_findplayer(accepter->challenge_from);
@@ -209,7 +209,7 @@ void *notif_manager(void *none) {
         break;
       }
 
-      case REJECT: {
+      case JOB_REJECT: {
         player_info *rejecter = playerlist_findplayer(job->origin);
         player_info *challenger =
             playerlist_findplayer(rejecter->challenge_from);
@@ -221,7 +221,7 @@ void *notif_manager(void *none) {
         break;
       }
 
-      case RESULT: {
+      case JOB_RESULT: {
         player_info *winner = playerlist_findplayer(job->to);
         player_info *loser = playerlist_findplayer(job->content);
         send_notice(winner, "%s has defeated %s in the duel!", winner->name,
@@ -250,7 +250,7 @@ void *notif_manager(void *none) {
 volatile sig_atomic_t done = 0;
 void terminate_server(int sig) {
   done = 1;
-  job *job = newjob(DONE, NULL, NULL, NULL);
+  job *job = newjob(JOB_DONE, NULL, NULL, NULL);
   queue_enqueue(job);
   return;
 }

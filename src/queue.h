@@ -7,14 +7,14 @@
 #define _QUEUE_H
 
 typedef enum {
-  DONE,
-  MSG,
-  JOIN,
-  LEAVE,
-  CHALLENGE,
-  ACCEPT,
-  REJECT,
-  RESULT,
+  JOB_DONE,
+  JOB_MSG,
+  JOB_JOIN,
+  JOB_LEAVE,
+  JOB_CHALLENGE,
+  JOB_ACCEPT,
+  JOB_REJECT,
+  JOB_RESULT,
 } JobType;
 
 // Data types and function prototypes for a queue of jobs structure

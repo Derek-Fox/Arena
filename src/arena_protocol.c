@@ -89,7 +89,7 @@ static void cmd_login(player_info* player, char* newname, char* rest) {
       send_ok(player, "Logged in as %s", newname);
 
       /* Notify everyone in the lobby that player just joined. */
-      job* job = newjob(JOIN, "0", NULL, player->name);
+      job* job = newjob(JOB_JOIN, "0", NULL, player->name);
       queue_enqueue(job);
     }
   }
@@ -116,14 +116,13 @@ static void cmd_moveto(player_info* player, char* room, char* rest) {
   } else if (*endptr != '\0' || newroom < 0 || newroom > 4) {  // need valid arg
     send_err(player, "Invalid arena number");
   } else {
-    char* oldroom;  // Save old room BEFORE changing it
-    asprintf(&oldroom, "%d", player->in_room);
+    char oldroom[12];  // Save old room BEFORE changing it
+    snprintf(oldroom, sizeof(oldroom), "%d", player->in_room);
 
     player->in_room = newroom;
 
-    job* job1 = newjob(JOIN, room, NULL, player->name);
-    job* job2 = newjob(LEAVE, oldroom, NULL, player->name);
-    free(oldroom);
+    job* job1 = newjob(JOB_JOIN, room, NULL, player->name);
+    job* job2 = newjob(JOB_LEAVE, oldroom, NULL, player->name);
 
     queue_enqueue(job1);
     queue_enqueue(job2);
@@ -159,18 +158,35 @@ static void cmd_list(player_info* player, char* arg1, char* rest) {
     send_err(player, "LIST should have no arguments");
   } else {  // all good
     int size = playerlist_getsize();
-    char* response = strdup("");  // initialize response with an empty string
+    size_t response_size = 1;  // start with 1 for the null terminator
+    char* response = malloc(response_size);  // initialize response with an empty string
+    if (response == NULL) {
+      perror("malloc LIST");
+      return;
+    }
+
+    response[0] = '\0';  // initialize as empty string
+
     /* for each player in list, if in same room, append to response string */
     for (size_t i = 0; i < size; i++) {
       player_info* curr = playerlist_get(i);
       if (curr->in_room == player->in_room) {
-        char* temp;
-        asprintf(&temp, "%s%s,", response, curr->name);
-        free(response);   // free the old response
-        response = temp;  // assign the new string to response
+        size_t name_len = strlen(curr->name);
+        response_size += name_len + 1;  // +1 for the comma
+        response = realloc(response, response_size);
+        if (response == NULL) {
+          perror("realloc LIST");
+          return;
+        }
+        strcat(response, curr->name);
+        strcat(response, ",");
       }
     }
-    response[strlen(response) - 1] = '\0';  // remove trailing comma
+
+    if (response[0] != '\0') {
+      response[strlen(response) - 1] = '\0';  // remove trailing comma
+    }
+
     send_ok(player, "%s", response);
     free(response);  // free the final response string
   }
@@ -188,7 +204,7 @@ static void cmd_msg(player_info* player, char* target, char* msg) {
     send_err(player, "MSG should have 2 arguments");
   } else {
     send_ok(player, "");
-    job* job = newjob(MSG, target, msg, player->name);
+    job* job = newjob(JOB_MSG, target, msg, player->name);
     queue_enqueue(job);
   }
 }
@@ -220,7 +236,7 @@ static void cmd_broadcast(player_info* player, char* msg, char* rest) {
     for (size_t i = 0; i < size; i++) {
       player_info* curr = playerlist_get(i);
       if (curr->in_room == player->in_room) {
-        job* job = newjob(MSG, curr->name, newmsg, player->name);
+        job* job = newjob(JOB_MSG, curr->name, newmsg, player->name);
         queue_enqueue(job);
       }
     }
@@ -321,7 +337,7 @@ static void cmd_challenge(player_info* player, char* target, char* rest) {
       send_err(player, "CHALLENGE sent to non-existent player.");
     } else {
       send_ok(player, "");
-      job* job = newjob(CHALLENGE, target, NULL, player->name);
+      job* job = newjob(JOB_CHALLENGE, target, NULL, player->name);
       target_player->challenge_pending = true;
       free(target_player->challenge_from);
       target_player->challenge_from = strdup(player->name);
@@ -343,17 +359,17 @@ static void cmd_accept(player_info* player, char* arg1, char* rest) {
     send_err(player, "No challenge pending");
   } else {
     send_ok(player, "");
-    job* job1 = newjob(ACCEPT, NULL, NULL, player->name);
+    job* job1 = newjob(JOB_ACCEPT, NULL, NULL, player->name);
     queue_enqueue(job1);
 
     player_info* player2 = playerlist_findplayer(player->challenge_from);
     int winner = execute_duel(player, player2);
     job* job2;
     if (winner == 1) {
-      job2 = newjob(RESULT, player->name, player2->name, player->name);
+      job2 = newjob(JOB_RESULT, player->name, player2->name, player->name);
       award_power(player, player2);
     } else {
-      job2 = newjob(RESULT, player2->name, player->name, player->name);
+      job2 = newjob(JOB_RESULT, player2->name, player->name, player->name);
       award_power(player2, player);
     }
     queue_enqueue(job2);
@@ -375,7 +391,7 @@ static void cmd_reject(player_info* player, char* arg1, char* rest) {
     send_err(player, "No challenge pending");
   } else {
     send_ok(player, "");
-    job* job = newjob(REJECT, NULL, NULL, player->name);
+    job* job = newjob(JOB_REJECT, NULL, NULL, player->name);
     queue_enqueue(job);
     player->challenge_pending = false;
   }
