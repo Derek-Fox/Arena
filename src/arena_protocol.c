@@ -4,10 +4,7 @@
  * player (the docommand function), and has functions to send
  * responses to ensure proper and consistent formatting of these
  * messages.
- * This gives access to the asprintf function - helpful, but not portable!
  */
-#define _GNU_SOURCE
-
 #define MAX_RESPONSE_LEN 256
 #define MAX_MSG_LEN 200
 
@@ -160,7 +157,8 @@ static void cmd_list(player_info* player, char* arg1, char* rest) {
   } else {  // all good
     int size = playerlist_getsize();
     size_t response_size = 1;  // start with 1 for the null terminator
-    char* response = malloc(response_size);  // initialize response with an empty string
+    char* response =
+        malloc(response_size);  // initialize response with an empty string
     if (response == NULL) {
       perror("malloc LIST");
       return;
@@ -223,18 +221,29 @@ static void cmd_broadcast(player_info* player, char* msg, char* rest) {
   } else if (msg == NULL) {
     send_err(player, "BROADCAST should have a message");
   } else {
-    // concat msg and rest, if rest is not null. otherwise, just use msg
-    char* newmsg;
-    if (rest != NULL) {
-      asprintf(&newmsg, "%s %s", msg, rest);
-      msg = newmsg;
-    } else {
-      newmsg = msg;
-    }
-    if (strlen(newmsg) > MAX_MSG_LEN) {
+    // Calculate the length of the new message
+    size_t rest_len =
+        (rest != NULL) ? strlen(rest) + 1  // +1 for space between msg and rest
+                       : 0;
+    size_t newmsg_len = strlen(msg) + rest_len + 1;  // +1 for null terminator
+
+    if (newmsg_len > MAX_MSG_LEN) {
       send_err(player, "Message too long. Max length is %d", MAX_MSG_LEN);
-      if (rest != NULL) free(newmsg);
       return;
+    }
+
+    // Allocate memory for the new message
+    char* newmsg = malloc(newmsg_len);
+    if (newmsg == NULL) {
+      perror("malloc");
+      return;
+    }
+
+    // Copy msg to newmsg and concatenate rest if it is not NULL
+    strcpy(newmsg, msg);
+    if (rest != NULL) {
+      strcat(newmsg, " ");
+      strcat(newmsg, rest);
     }
 
     send_ok(player, "");
@@ -248,9 +257,7 @@ static void cmd_broadcast(player_info* player, char* msg, char* rest) {
       }
     }
 
-    if (rest != NULL) {
-      free(newmsg);
-    }
+    free(newmsg);
   }
 }
 
