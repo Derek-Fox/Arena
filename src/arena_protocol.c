@@ -8,9 +8,12 @@
  */
 #define _GNU_SOURCE
 
+#define MAX_RESPONSE_LEN 256
+
 #include "arena_protocol.h"
 
 #include <ctype.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,27 +25,42 @@
 #include "util.h"
 
 /************************************************************************
- * Call this response function if an error can be described by a simple
- * string.
+ * Response function to send an ERR followed by format string with optional
+ * args.
  */
-void send_err(player_info* player, char* desc) {
-  fprintf(player->fp_send, "ERR %s\n", desc);
+void send_err(player_info* player, const char* format, ...) {
+  char response[MAX_RESPONSE_LEN];
+  va_list args;
+  va_start(args, format);
+  vsnprintf(response, MAX_RESPONSE_LEN, format, args);
+  va_end(args);
+  fprintf(player->fp_send, "ERR %s\n", response);
 }
 
 /************************************************************************
- * Call this response function to send an OK followed by a description
- * string.
+ * Call this response function to send an OK followed by a format string
+ * with optional args.
  */
-void send_ok(player_info* player, char* desc) {
-  fprintf(player->fp_send, "OK %s\n", desc);
+void send_ok(player_info* player, const char* format, ...) {
+  char response[MAX_RESPONSE_LEN];
+  va_list args;
+  va_start(args, format);
+  vsnprintf(response, MAX_RESPONSE_LEN, format, args);
+  va_end(args);
+  fprintf(player->fp_send, "OK %s\n", response);
 }
 
 /************************************************************************
- * Call this response function to send an NOTICE followed by a description
- * string.
+ * Call this response function to send a NOTICE followed by a format string
+ * with optional args.
  */
-void send_notice(player_info* player, char* desc) {
-  fprintf(player->fp_send, "NOTICE %s\n", desc);
+void send_notice(player_info* player, const char* format, ...) {
+  char response[MAX_RESPONSE_LEN];
+  va_list args;
+  va_start(args, format);
+  vsnprintf(response, MAX_RESPONSE_LEN, format, args);
+  va_end(args);
+  fprintf(player->fp_send, "NOTICE %s\n", response);
 }
 
 /************************************************************************
@@ -52,35 +70,23 @@ void send_notice(player_info* player, char* desc) {
  */
 static void cmd_login(player_info* player, char* newname, char* rest) {
   if (player->state == PLAYER_REG) {  // player must not already be logged in
-    char* response;
-    asprintf(&response, "Already logged in as %s", player->name);
-    send_err(player, response);
-    free(response);
+    send_err(player, "Already logged in as %s", player->name);
   } else if (newname == NULL) {  // player must supply a name
     send_err(player, "LOGIN missing name");
   } else if (strlen(newname) >
              PLAYER_MAXNAME) {  // player name cannot be too long
-    char* response;
-    asprintf(&response, "Invalid name -- too long (max length %d)",
+    send_err(player, "Invalid name -- too long (max length %d)",
              PLAYER_MAXNAME);
-    send_err(player, response);
-    free(response);
   } else if (!strisalnum(newname)) {  // player name must be alphanumeric
     send_err(player, "Invalid name -- only alphanumeric characters allowed");
   } else if (rest != NULL) {
     send_err(player, "LOGIN should have one argument");
   } else {  // name valid format, but need to check if in use
     if (playerlist_changeplayername(player, newname) < 0) {  // duplicate name
-      char* response;
-      asprintf(&response, "Player already logged in as %s", newname);
-      send_err(player, response);
-      free(response);
+      send_err(player, "Player already logged in as %s", newname);
     } else {  // finally all good
       player->state = PLAYER_REG;
-      char* response;
-      asprintf(&response, "Logged in as %s", newname);
-      send_ok(player, response);
-      free(response);
+      send_ok(player, "Logged in as %s", newname);
 
       /* Notify everyone in the lobby that player just joined. */
       job* job = newjob(JOIN, "0", NULL, player->name);
@@ -104,10 +110,7 @@ static void cmd_moveto(player_info* player, char* room, char* rest) {
   if (player->state != PLAYER_REG) {
     send_err(player, "Player must be logged in before MOVETO");
   } else if (newroom == player->in_room) {  // must move to different room
-    char* response;
-    asprintf(&response, "Already in arena %d", newroom);
-    send_err(player, response);
-    free(response);
+    send_err(player, "Already in arena %d", newroom);
   } else if (room == NULL || rest != NULL) {  // need 1 arg
     send_err(player, "MOVETO should have one argument");
   } else if (*endptr != '\0' || newroom < 0 || newroom > 4) {  // need valid arg
@@ -137,10 +140,11 @@ static void cmd_stat(player_info* player, char* arg1, char* rest) {
   } else if (arg1 != NULL) {  // need no args
     send_err(player, "STAT should have no arguments");
   } else {  // all good
-    char* response;
-    asprintf(&response, "%d", player->in_room);
-    send_ok(player, response);
-    free(response);
+    if (player->in_room == 0) {
+      send_ok(player, "lobby");
+    } else {
+      send_ok(player, "%d", player->in_room);
+    }
   }
 }
 
@@ -167,7 +171,7 @@ static void cmd_list(player_info* player, char* arg1, char* rest) {
       }
     }
     response[strlen(response) - 1] = '\0';  // remove trailing comma
-    send_ok(player, response);
+    send_ok(player, "%s", response);
     free(response);  // free the final response string
   }
 }
@@ -198,7 +202,7 @@ static void cmd_broadcast(player_info* player, char* msg, char* rest) {
   if (player->state != PLAYER_REG) {
     send_err(player, "Player must be logged in before BROADCAST");
   } else if (msg == NULL) {
-    send_err(player, "BROADCAST should have an message");
+    send_err(player, "BROADCAST should have a message");
   } else {
     send_ok(player, "");
 
@@ -247,10 +251,7 @@ static void cmd_whoami(player_info* player, char* arg1, char* rest) {
   } else if (arg1 != NULL) {  // need no args
     send_err(player, "WHOAMI should have no arguments");
   } else {  // all good
-    char* response;
-    asprintf(&response, "%s: %d", player->name, player->power);
-    send_ok(player, response);
-    free(response);
+    send_ok(player, "%s: %d", player->name, player->power);
   }
 }
 

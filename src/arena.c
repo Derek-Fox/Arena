@@ -133,100 +133,108 @@ void *notif_manager(void *none) {
   while (1) {
     job *job = queue_dequeue_wait();
 
-    if (job->type == DONE) {
-      destroyjob(job);
-      break;
+    switch (job->type) {
+      case DONE:
+        destroyjob(job);
+        pthread_exit(NULL);
+        break;
+
+      case MSG: {
+        player_info *target = playerlist_findplayer(job->to);
+        player_info *origin = playerlist_findplayer(job->origin);
+        if (target != NULL && target->in_room == origin->in_room &&
+            target != origin) {
+          send_notice(target, "From %s: %s", job->origin, job->content);
+        }
+        break;
+      }
+
+      case JOIN: {
+        int newroom = (int)strtol(job->to, NULL, 0);
+        player_info *mover = playerlist_findplayer(job->origin);
+        int size = playerlist_getsize();
+        for (size_t i = 0; i < size; i++) {
+          player_info *curr = playerlist_get(i);
+          if (curr->in_room == newroom && curr->state == PLAYER_REG) {
+            if (newroom == 0) {
+              send_notice(curr, "%s has joined the lobby", mover->name);
+            } else {
+              send_notice(curr, "%s has joined arena %d", mover->name, newroom);
+            }
+          }
+        }
+        break;
+      }
+
+      case LEAVE: {
+        int oldroom = (int)strtol(job->to, NULL, 0);
+        player_info *mover = playerlist_findplayer(job->origin);
+        int size = playerlist_getsize();
+        for (size_t i = 0; i < size; i++) {
+          player_info *curr = playerlist_get(i);
+          if (curr->in_room == oldroom) {
+            if (oldroom == 0) {
+              send_notice(curr, "%s has left the lobby", mover->name);
+            } else {
+              send_notice(curr, "%s has left arena %d", mover->name, oldroom);
+            }
+          }
+        }
+        break;
+      }
+
+      case CHALLENGE: {
+        player_info *challenger = playerlist_findplayer(job->origin);
+        player_info *target = playerlist_findplayer(job->to);
+        if (target != NULL && challenger != target &&
+            challenger->in_room == target->in_room) {
+          send_notice(
+              target,
+              "%s has challenged you to a duel. Please ACCEPT or REJECT",
+              challenger->name);
+        }
+        break;
+      }
+
+      case ACCEPT: {
+        player_info *accepter = playerlist_findplayer(job->origin);
+        player_info *challenger =
+            playerlist_findplayer(accepter->challenge_from);
+        if (challenger != NULL && accepter != challenger &&
+            accepter->in_room == challenger->in_room) {
+          send_notice(challenger,
+                      "%s has accepted your challenge. Let the battle begin!",
+                      accepter->name);
+        }
+        break;
+      }
+
+      case REJECT: {
+        player_info *rejecter = playerlist_findplayer(job->origin);
+        player_info *challenger =
+            playerlist_findplayer(rejecter->challenge_from);
+        if (challenger != NULL && rejecter != challenger &&
+            rejecter->in_room == challenger->in_room) {
+          send_notice(challenger, "%s has rejected your challenge.",
+                      rejecter->name);
+        }
+        break;
+      }
+
+      case RESULT: {
+        player_info *winner = playerlist_findplayer(job->to);
+        player_info *loser = playerlist_findplayer(job->content);
+        send_notice(winner, "%s has defeated %s in the duel!", winner->name,
+                    loser->name);
+        send_notice(loser, "%s has defeated %s in the duel!", winner->name,
+                    loser->name);
+        break;
+      }
+
+      default:
+        break;
     }
 
-    if (job->type == MSG) {
-      player_info *target = playerlist_findplayer(job->to);
-      player_info *origin = playerlist_findplayer(job->origin);
-      if (target != NULL && target->in_room == origin->in_room &&
-          target != origin) {
-        char *msg;
-        asprintf(&msg, "From %s: %s", job->origin, job->content);
-        send_notice(target, msg);
-        free(msg);
-      }
-    } else if (job->type == JOIN) {
-      int newroom = (int)strtol(job->to, NULL, 0);
-      player_info *mover = playerlist_findplayer(job->origin);
-      char *response;
-      int size = playerlist_getsize();
-      for (size_t i = 0; i < size; i++) {
-        player_info *curr = playerlist_get(i);
-        if (curr->in_room == newroom &&
-            curr->state == PLAYER_REG) {  // player in newroom -> notify join
-          if (newroom == 0) {             // joining lobby
-            asprintf(&response, "%s has joined the lobby", mover->name);
-          } else {
-            asprintf(&response, "%s has entered arena %d", mover->name,
-                     newroom);
-          }
-          send_notice(curr, response);
-          free(response);
-        }
-      }
-    } else if (job->type == LEAVE) {
-      int oldroom = (int)strtol(job->to, NULL, 0);
-      player_info *mover = playerlist_findplayer(job->origin);
-      char *response;
-      int size = playerlist_getsize();
-      for (size_t i = 0; i < size; i++) {
-        player_info *curr = playerlist_get(i);
-        if (curr->in_room == oldroom) {  // player in oldroom -> notify leave
-          if (oldroom == 0) {            // leaving lobby
-            asprintf(&response, "%s has left the lobby", mover->name);
-          } else {
-            asprintf(&response, "%s has left arena %d", mover->name, oldroom);
-          }
-          send_notice(curr, response);
-          free(response);
-        }
-      }
-    } else if (job->type == CHALLENGE) {
-      player_info *challenger = playerlist_findplayer(job->origin);
-      player_info *target = playerlist_findplayer(job->to);
-      if (target != NULL && challenger != target &&
-          challenger->in_room == target->in_room) {
-        char *response;
-        asprintf(&response, "%s has challenged you to a duel. Please ACCEPT or REJECT.",
-                 challenger->name);
-        send_notice(target, response);
-        free(response);
-      }
-    } else if (job->type == ACCEPT) {
-      player_info *accepter = playerlist_findplayer(job->origin);
-      player_info *challenger = playerlist_findplayer(accepter->challenge_from);
-      if (challenger != NULL && accepter != challenger &&
-          accepter->in_room == challenger->in_room) {
-        char *response;
-        asprintf(&response,
-                 "%s has accepted your challenge. Let the battle begin!",
-                 accepter->name);
-        send_notice(challenger, response);
-        free(response);
-      }
-    } else if (job->type == REJECT) {
-      player_info *rejecter = playerlist_findplayer(job->origin);
-      player_info *challenger = playerlist_findplayer(rejecter->challenge_from);
-      if (challenger != NULL && rejecter != challenger &&
-          rejecter->in_room == challenger->in_room) {
-        char *response;
-        asprintf(&response, "%s has rejected your challenge.", rejecter->name);
-        send_notice(challenger, response);
-        free(response);
-      }
-    } else if (job->type == RESULT) {
-      player_info *winner = playerlist_findplayer(job->to);
-      player_info *loser = playerlist_findplayer(job->content);
-      char *response;
-      asprintf(&response, "%s has defeated %s in the duel!", winner->name,
-               loser->name);
-      send_notice(winner, response);
-      send_notice(loser, response);
-      free(response);
-    }
     destroyjob(job);
   }
 
