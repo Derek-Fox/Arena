@@ -13,7 +13,6 @@
 void player_init(player_info *player, FILE *fp_send, FILE *fp_recv) {
   player->name[0] = '\0';
   player->state = PLAYER_UNREG;
-  player->power = 1;
   player->duel_status = DUEL_NONE;
   player->choice = NULL;
   player->opponent = NULL;

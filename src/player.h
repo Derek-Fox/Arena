@@ -28,7 +28,6 @@ typedef struct player_info player_info; // forward declaration so it can have a 
 struct player_info {
   char name[PLAYER_MAXNAME + 1];
   player_state state;
-  int power;
   duel_status duel_status;
   const char *choice; // Latest duel choice - meaningless if duel_status not DUEL_ACTIVE
   player_info *opponent;  // pointer to challenger - meaningless if duel_status DUEL_NONE

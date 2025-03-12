@@ -5,7 +5,7 @@ This document outlines the protocol for the chat server. The server is a simple 
 ## Status Messages:
 The server will respond to each command with a status message. The status message will be one of the following:
 - `OK`: The command was successful.
-- `ERROR`: There was an error processing the command.
+- `ERR`: There was an error processing the command.
 - `NOTICE`: A message from the server to the client.
 
 ## Commands:
@@ -24,7 +24,7 @@ The server will respond to each command with a status message. The status messag
     - User must not already be logged in.
     - The username must be between 1 and 20 characters long.
     - The username must be alphanumeric.
-    - The username must be unique and not already in use by another user. If the username is already in use, the server will respond with an error message.
+    - The username must be unique and not already in use by another user. If the username is already in use, the server will respond with an `ERR`.
     - Server will respond with `OK` upon successful login.
 
 ### BYE
@@ -97,7 +97,6 @@ The server will respond to each command with a status message. The status messag
     - User must be logged in.
     - User must have a pending challenge.
     - Server will respond with `OK` and start the duel.
-    - The winner will be determined based on each player's power level.
 
 ### REJECT
 - **Description**: Reject an incoming challenge from another player.
@@ -106,3 +105,12 @@ The server will respond to each command with a status message. The status messag
     - User must be logged in.
     - User must have a pending challenge.
     - Server will respond with `OK` and notify the challenger that the challenge was rejected.
+
+### CHOOSE
+- **Description**: Choose ROCK, PAPER, or SCISSORS for the duel.
+- **Usage**: `CHOOSE <ROCK, PAPER, or SCISSORS>`
+- **Notes**:
+    - User must be logged in.
+    - User must have an active duel.
+    - Server will respond with `OK`.
+    - If your opponent has also made their choice, the result of the duel will be determined.

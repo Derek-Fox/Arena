@@ -276,7 +276,7 @@ static void cmd_bye(player_info* player, char* arg1, char* rest) {
 
 /************************************************************************
  * Handle the "WHOAMI" command. Takes no arguments. Sends OK with the
- * player's name and power level.
+ * player's name.
  */
 static void cmd_whoami(player_info* player, char* arg1, char* rest) {
   if (player->state != PLAYER_REG) {
@@ -284,7 +284,7 @@ static void cmd_whoami(player_info* player, char* arg1, char* rest) {
   } else if (arg1 != NULL) {  // need no args
     send_err(player, "WHOAMI should have no arguments");
   } else {  // all good
-    send_ok(player, "%s: %d", player->name, player->power);
+    send_ok(player, "%s", player->name);
   }
 }
 
@@ -321,11 +321,10 @@ static void cmd_help(player_info* player, char* cmd, char* rest) {
           player,
           "HELP [command] - get help on a command, or list all commands");
     } else if (strcmp(cmd, "WHOAMI") == 0) {
-      send_notice(player, "WHOAMI - get your own name and power level");
+      send_notice(player, "WHOAMI - get your own name");
     } else if (strcmp(cmd, "CHALLENGE") == 0) {
       send_notice(player,
-                  "CHALLENGE <player> - challenge another player to a duel "
-                  "(the winner is decided based on each player's power level)");
+                  "CHALLENGE <player> - challenge another player to a duel");
     } else if (strcmp(cmd, "ACCEPT") == 0) {
       send_notice(player,
                   "ACCEPT - accept an incoming challenge from another player");
