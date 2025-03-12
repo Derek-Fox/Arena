@@ -351,7 +351,7 @@ static void cmd_challenge(player_info* player, char* target, char* rest) {
     send_err(player, "CHALLENGE should have one argument");
   } else if (player->duel_status == DUEL_PENDING) {
     send_err(player, "Already have pending challenge with %s",
-             player->opponent_name);
+             player->opponent->name);
   } else {
     send_ok(player, "");
     job* job = newjob(JOB_CHALLENGE, target, NULL, player->name);

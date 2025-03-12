@@ -8,31 +8,34 @@
 #define PLAYER_MAXNAME 20
 
 // These are the valid states of a player.
-#define PLAYER_UNREG 0
-#define PLAYER_REG 1
-#define PLAYER_DONE 2
+typedef enum player_state {
+  PLAYER_UNREG,
+  PLAYER_REG,
+  PLAYER_DONE,
+} player_state;
 
 // Possible states for a player's duel status
-typedef enum {
+typedef enum duel_status {
   DUEL_NONE,
   DUEL_PENDING,
   DUEL_ACTIVE,
-} DuelStatus;
+} duel_status;
 
 // The struct to keep track of all information about a player in
 // the system.
+typedef struct player_info player_info; // forward declaration so it can have a pointer to itself
 
-typedef struct player_info {
+struct player_info {
   char name[PLAYER_MAXNAME + 1];
-  int state;
+  player_state state;
   int power;
-  DuelStatus duel_status;
-  char* choice; // Latest duel choice - meaningless if duel_status not DUEL_ACTIVE
-  char* opponent_name;  // name of challenger - meaningless if duel_status DUEL_NONE
+  duel_status duel_status;
+  const char *choice; // Latest duel choice - meaningless if duel_status not DUEL_ACTIVE
+  player_info *opponent;  // pointer to challenger - meaningless if duel_status DUEL_NONE
   int in_room;
-  FILE* fp_send;
-  FILE* fp_recv;
-} player_info;
+  FILE *fp_send;
+  FILE *fp_recv;
+}; 
 
 // Basic allocation/initializer and destructor functions
 

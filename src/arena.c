@@ -23,7 +23,7 @@
 #include "playerlist.h"
 #include "queue.h"
 
-#define SERV_PORT "8080"
+#define SERVER_PORT "8080"
 
 /************************************************************************
  * Make a TCP listener for port "service" (given as a string, but
@@ -126,8 +126,8 @@ void *handle_player(void *newplayer) {
 }
 
 const char *determine_winner(player_info* p1, player_info* p2) {
-  char *choice1 = p1->choice;
-  char *choice2 = p2->choice;
+  const char *choice1 = p1->choice;
+  const char *choice2 = p2->choice;
 
   if (strcmp(choice1, choice2) == 0) {
     return "Nobody";
@@ -211,12 +211,10 @@ void *notif_manager(void *none) {
               challenger->name);
           
           target->duel_status = DUEL_PENDING;
-          free(target->opponent_name);
-          target->opponent_name = strdup(challenger->name);
+          target->opponent = challenger;
 
           challenger->duel_status = DUEL_PENDING;
-          free(challenger->opponent_name);
-          challenger->opponent_name = strdup(target->name);
+          challenger->opponent = target;
           
         }
         break;
@@ -224,7 +222,7 @@ void *notif_manager(void *none) {
 
       case JOB_ACCEPT: {
         player_info *accepter = playerlist_findplayer(job->origin);
-        player_info *challenger = playerlist_findplayer(accepter->opponent_name);
+        player_info *challenger = accepter->opponent;
         if (challenger != NULL && accepter != challenger &&
             accepter->in_room == challenger->in_room) {
           send_notice(challenger,
@@ -232,18 +230,17 @@ void *notif_manager(void *none) {
                       accepter->name);
 
           accepter->duel_status = DUEL_ACTIVE;
-          challenger->duel_status = DUEL_ACTIVE;
-
-          send_notice(challenger, "Please CHOOSE ROCK, PAPER, or SCISSORS.");
           send_notice(accepter, "Please CHOOSE ROCK, PAPER, or SCISSORS.");
+          
+          challenger->duel_status = DUEL_ACTIVE;
+          send_notice(challenger, "Please CHOOSE ROCK, PAPER, or SCISSORS.");
         }
         break;
       }
 
       case JOB_REJECT: {
         player_info *rejecter = playerlist_findplayer(job->origin);
-        player_info *challenger =
-            playerlist_findplayer(rejecter->opponent_name);
+        player_info *challenger = rejecter->opponent;
         if (challenger != NULL && rejecter != challenger &&
             rejecter->in_room == challenger->in_room) {
           send_notice(challenger, "%s has rejected your challenge.",
@@ -256,7 +253,7 @@ void *notif_manager(void *none) {
 
       case JOB_CHOICE: {
         player_info *p1 = playerlist_findplayer(job->origin);
-        player_info *p2 = playerlist_findplayer(p1->opponent_name);
+        player_info *p2 = p1->opponent;
         if (p1->choice != NULL && p2->choice != NULL) {
           const char *winner = determine_winner(p1, p2);
           send_notice(p1, "Result of your duel with %s: %s wins!", p2->name, winner);
@@ -305,7 +302,7 @@ int main(int argc, char *argv[]) {
   playerlist_init();
 
   /* Set up server to start accepting connections */
-  int sock_fd = create_listener(SERV_PORT);
+  int sock_fd = create_listener(SERVER_PORT);
   if (sock_fd < 0) {
     fprintf(stderr, "Server setup failed.\n");
     exit(1);
