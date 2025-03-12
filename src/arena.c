@@ -23,7 +23,7 @@
 #include "playerlist.h"
 #include "queue.h"
 
-#define SERV_PORT "8080"
+#define SERVER_PORT "8080"
 
 /************************************************************************
  * Make a TCP listener for port "service" (given as a string, but
@@ -125,6 +125,23 @@ void *handle_player(void *newplayer) {
   pthread_exit(NULL);
 }
 
+const char *determine_winner(player_info* p1, player_info* p2) {
+  const char *choice1 = p1->choice;
+  const char *choice2 = p2->choice;
+
+  if (strcmp(choice1, choice2) == 0) {
+    return "Nobody"; // TODO: I hate this
+  }
+
+  if ((strcmp(choice1, "ROCK") == 0 && strcmp(choice2, "SCISSORS") == 0) ||
+      (strcmp(choice1, "PAPER") == 0 && strcmp(choice2, "ROCK") == 0) ||
+      (strcmp(choice1, "SCISSORS") == 0 && strcmp(choice2, "PAPER") == 0)) {
+    return p1->name;
+  } else {
+    return p2->name;
+  }
+}
+
 /************************************************************************
  * Notification manager, which waits for jobs to be passed onto it and
  * then executes them.
@@ -140,8 +157,8 @@ void *notif_manager(void *none) {
         break;
 
       case JOB_MSG: {
-        player_info *target = playerlist_findplayer(job->to);
-        player_info *origin = playerlist_findplayer(job->origin);
+        player_info *origin = job->origin;
+        player_info *target = playerlist_findplayer(job->to.player_name);
         if (target != NULL && target->in_room == origin->in_room &&
             target != origin) {
           send_notice(target, "From %s: %s", job->origin, job->content);
@@ -150,8 +167,8 @@ void *notif_manager(void *none) {
       }
 
       case JOB_JOIN: {
-        int newroom = (int)strtol(job->to, NULL, 0);
-        player_info *mover = playerlist_findplayer(job->origin);
+        int newroom = job->to.room;
+        player_info *mover = job->origin;
         int size = playerlist_getsize();
         for (size_t i = 0; i < size; i++) {
           player_info *curr = playerlist_get(i);
@@ -167,8 +184,8 @@ void *notif_manager(void *none) {
       }
 
       case JOB_LEAVE: {
-        int oldroom = (int)strtol(job->to, NULL, 0);
-        player_info *mover = playerlist_findplayer(job->origin);
+        int oldroom = job->to.room;
+        player_info *mover = job->origin;
         int size = playerlist_getsize();
         for (size_t i = 0; i < size; i++) {
           player_info *curr = playerlist_get(i);
@@ -184,54 +201,77 @@ void *notif_manager(void *none) {
       }
 
       case JOB_CHALLENGE: {
-        player_info *challenger = playerlist_findplayer(job->origin);
-        player_info *target = playerlist_findplayer(job->to);
+        player_info *challenger = job->origin;
+        player_info *target = playerlist_findplayer(job->to.player_name);
         if (target != NULL && challenger != target &&
             challenger->in_room == target->in_room) {
           send_notice(
               target,
               "%s has challenged you to a duel. Please ACCEPT or REJECT",
               challenger->name);
+          
+          target->duel_status = DUEL_PENDING;
+          target->opponent = challenger;
+
+          challenger->duel_status = DUEL_PENDING;
+          challenger->opponent = target;
+          
         }
         break;
       }
 
       case JOB_ACCEPT: {
-        player_info *accepter = playerlist_findplayer(job->origin);
-        player_info *challenger =
-            playerlist_findplayer(accepter->challenge_from);
+        player_info *accepter = job->origin;
+        player_info *challenger = accepter->opponent;
         if (challenger != NULL && accepter != challenger &&
             accepter->in_room == challenger->in_room) {
+          send_notice(accepter,
+                      "You have accepted the challenge from %s. Let the battle begin!",
+                      challenger->name);
           send_notice(challenger,
                       "%s has accepted your challenge. Let the battle begin!",
                       accepter->name);
+
+          accepter->duel_status = DUEL_ACTIVE;
+          send_notice(accepter, "Please CHOOSE ROCK, PAPER, or SCISSORS.");
+          
+          challenger->duel_status = DUEL_ACTIVE;
+          send_notice(challenger, "Please CHOOSE ROCK, PAPER, or SCISSORS.");
         }
         break;
       }
 
       case JOB_REJECT: {
-        player_info *rejecter = playerlist_findplayer(job->origin);
-        player_info *challenger =
-            playerlist_findplayer(rejecter->challenge_from);
+        player_info *rejecter = job->origin;
+        player_info *challenger = rejecter->opponent;
         if (challenger != NULL && rejecter != challenger &&
             rejecter->in_room == challenger->in_room) {
           send_notice(challenger, "%s has rejected your challenge.",
                       rejecter->name);
+          rejecter->duel_status = DUEL_NONE;
+          challenger->duel_status= DUEL_NONE;
         }
         break;
       }
 
-      case JOB_RESULT: {
-        player_info *winner = playerlist_findplayer(job->to);
-        player_info *loser = playerlist_findplayer(job->content);
-        send_notice(winner, "%s has defeated %s in the duel!", winner->name,
-                    loser->name);
-        send_notice(loser, "%s has defeated %s in the duel!", winner->name,
-                    loser->name);
+      case JOB_CHOICE: {
+        player_info *p1 = job->origin;
+        player_info *p2 = p1->opponent;
+        if (p1->choice != NULL && p2->choice != NULL) { // may cause race condition? never seen it happen but slightly sketch...
+          const char *winner = determine_winner(p1, p2);
+          send_notice(p1, "Result of your duel with %s: %s wins!", p2->name, winner);
+          send_notice(p2, "Result of your duel with %s: %s wins!", p1->name, winner);
+
+          p1->choice = NULL;
+          p1->duel_status = DUEL_NONE;
+
+          p2->choice = NULL;
+          p2->duel_status = DUEL_NONE;
+        }
         break;
       }
 
-      default:
+      default: // unreachable unless i made a typo!
         break;
     }
 
@@ -265,7 +305,7 @@ int main(int argc, char *argv[]) {
   playerlist_init();
 
   /* Set up server to start accepting connections */
-  int sock_fd = create_listener(SERV_PORT);
+  int sock_fd = create_listener(SERVER_PORT);
   if (sock_fd < 0) {
     fprintf(stderr, "Server setup failed.\n");
     exit(1);

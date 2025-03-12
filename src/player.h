@@ -1,35 +1,40 @@
-// Contains function prototypes and typedefs for player_info struct
-
 #ifndef _PLAYER_H
 #define _PLAYER_H
 
 #include <pthread.h>
-#include <stdbool.h>
 #include <stdio.h>
 
 // The maximum length of a player name
-
 #define PLAYER_MAXNAME 20
 
 // These are the valid states of a player.
-#define PLAYER_UNREG 0
-#define PLAYER_REG 1
-#define PLAYER_DONE 2
+typedef enum player_state {
+  PLAYER_UNREG,
+  PLAYER_REG,
+  PLAYER_DONE,
+} player_state;
+
+// Possible states for a player's duel status
+typedef enum duel_status {
+  DUEL_NONE,
+  DUEL_PENDING,
+  DUEL_ACTIVE,
+} duel_status;
 
 // The struct to keep track of all information about a player in
 // the system.
+typedef struct player_info player_info; // forward declaration so it can have a pointer to itself
 
-typedef struct player_info {
+struct player_info {
   char name[PLAYER_MAXNAME + 1];
-  int state;
-  int power;
-  bool challenge_pending;
-  char* challenge_from;  // name of challenger - meaningless if
-                         // challenge_pending is false
+  player_state state;
+  duel_status duel_status;
+  const char *choice; // Latest duel choice - meaningless if duel_status not DUEL_ACTIVE
+  player_info *opponent;  // pointer to challenger - meaningless if duel_status DUEL_NONE
   int in_room;
-  FILE* fp_send;
-  FILE* fp_recv;
-} player_info;
+  FILE *fp_send;
+  FILE *fp_recv;
+}; 
 
 // Basic allocation/initializer and destructor functions
 

@@ -16,7 +16,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "duel.h"
 #include "player.h"
 #include "playerlist.h"
 #include "queue.h"
@@ -26,7 +25,8 @@
  * Helper function to send a response with a specified type and format string
  * with optional args.
  */
-static void send_response(player_info* player, const char* type, const char* format, va_list args) {
+static void send_response(player_info* player, const char* type,
+                          const char* format, va_list args) {
   char response[MAX_RESPONSE_LEN];
   vsnprintf(response, MAX_RESPONSE_LEN, format, args);
   fprintf(player->fp_send, "%s %s\n", type, response);
@@ -91,7 +91,8 @@ static void cmd_login(player_info* player, char* newname, char* rest) {
       send_ok(player, "Logged in as %s", newname);
 
       /* Notify everyone in the lobby that player just joined. */
-      job* job = newjob(JOB_JOIN, "0", NULL, player->name);
+      int lobby = 0;
+      job* job = newjob(JOB_JOIN, &lobby, NULL, player);
       queue_enqueue(job);
     }
   }
@@ -105,10 +106,7 @@ static void cmd_login(player_info* player, char* newname, char* rest) {
  */
 static void cmd_moveto(player_info* player, char* room, char* rest) {
   char* endptr;
-  int newroom =
-      (int)strtol(room, &endptr, 0);  // convert to int --> fills endptr with
-                                      // first invalid character (if it exists)
-
+  int newroom = (int)strtol(room, &endptr, 0);  // convert to int
   if (player->state != PLAYER_REG) {
     send_err(player, "Player must be logged in before MOVETO");
   } else if (newroom == player->in_room) {  // must move to different room
@@ -118,13 +116,11 @@ static void cmd_moveto(player_info* player, char* room, char* rest) {
   } else if (*endptr != '\0' || newroom < 0 || newroom > 4) {  // need valid arg
     send_err(player, "Invalid arena number");
   } else {
-    char oldroom[12];  // Save old room BEFORE changing it
-    snprintf(oldroom, sizeof(oldroom), "%d", player->in_room);
-
+    int oldroom = player->in_room;  // save old room before changing it
     player->in_room = newroom;
 
-    job* job1 = newjob(JOB_JOIN, room, NULL, player->name);
-    job* job2 = newjob(JOB_LEAVE, oldroom, NULL, player->name);
+    job* job1 = newjob(JOB_JOIN, &newroom, NULL, player);
+    job* job2 = newjob(JOB_LEAVE, &oldroom, NULL, player);
 
     queue_enqueue(job1);
     queue_enqueue(job2);
@@ -209,7 +205,7 @@ static void cmd_msg(player_info* player, char* target, char* msg) {
     send_err(player, "Message too long. Max length is %d", MAX_MSG_LEN);
   } else {
     send_ok(player, "");
-    job* job = newjob(JOB_MSG, target, msg, player->name);
+    job* job = newjob(JOB_MSG, target, msg, player);
     queue_enqueue(job);
   }
 }
@@ -225,6 +221,9 @@ static void cmd_broadcast(player_info* player, char* msg, char* rest) {
   } else if (msg == NULL) {
     send_err(player, "BROADCAST should have a message");
   } else {
+    /* Need to combine msg and rest, as command is given BROADCAST <msg which
+    might include spaces> but is parsed into <cmd (BROADCAST)> <first word of
+    msg> <rest of msg> */
     // Calculate the length of the new message
     size_t rest_len =
         (rest != NULL) ? strlen(rest) + 1  // +1 for space between msg and rest
@@ -256,7 +255,7 @@ static void cmd_broadcast(player_info* player, char* msg, char* rest) {
     for (size_t i = 0; i < size; i++) {
       player_info* curr = playerlist_get(i);
       if (curr->in_room == player->in_room) {
-        job* job = newjob(JOB_MSG, curr->name, newmsg, player->name);
+        job* job = newjob(JOB_MSG, curr->name, newmsg, player);
         queue_enqueue(job);
       }
     }
@@ -277,7 +276,7 @@ static void cmd_bye(player_info* player, char* arg1, char* rest) {
 
 /************************************************************************
  * Handle the "WHOAMI" command. Takes no arguments. Sends OK with the
- * player's name and power level.
+ * player's name.
  */
 static void cmd_whoami(player_info* player, char* arg1, char* rest) {
   if (player->state != PLAYER_REG) {
@@ -285,7 +284,7 @@ static void cmd_whoami(player_info* player, char* arg1, char* rest) {
   } else if (arg1 != NULL) {  // need no args
     send_err(player, "WHOAMI should have no arguments");
   } else {  // all good
-    send_ok(player, "%s: %d", player->name, player->power);
+    send_ok(player, "%s", player->name);
   }
 }
 
@@ -322,17 +321,20 @@ static void cmd_help(player_info* player, char* cmd, char* rest) {
           player,
           "HELP [command] - get help on a command, or list all commands");
     } else if (strcmp(cmd, "WHOAMI") == 0) {
-      send_notice(player, "WHOAMI - get your own name and power level");
+      send_notice(player, "WHOAMI - get your own name");
     } else if (strcmp(cmd, "CHALLENGE") == 0) {
       send_notice(player,
-                  "CHALLENGE <player> - challenge another player to a duel "
-                  "(the winner is decided based on each player's power level)");
+                  "CHALLENGE <player> - challenge another player to a duel");
     } else if (strcmp(cmd, "ACCEPT") == 0) {
       send_notice(player,
                   "ACCEPT - accept an incoming challenge from another player");
     } else if (strcmp(cmd, "REJECT") == 0) {
       send_notice(player,
                   "REJECT - reject an incoming challenge from another player");
+    } else if (strcmp(cmd, "CHOOSE") == 0) {
+      send_notice(
+          player,
+          "CHOOSE <ROCK, PAPER, SCISSORS> - choose your move during a duel.");
     } else {
       send_err(player, "Unknown command");
     }
@@ -349,18 +351,13 @@ static void cmd_challenge(player_info* player, char* target, char* rest) {
     send_err(player, "Player must be logged in before CHALLENGE");
   } else if (target == NULL || rest != NULL) {
     send_err(player, "CHALLENGE should have one argument");
+  } else if (player->duel_status == DUEL_PENDING) {
+    send_err(player, "Already have pending challenge with %s",
+             player->opponent->name);
   } else {
-    player_info* target_player = playerlist_findplayer(target);
-    if (target_player == NULL) {
-      send_err(player, "CHALLENGE sent to non-existent player.");
-    } else {
-      send_ok(player, "");
-      job* job = newjob(JOB_CHALLENGE, target, NULL, player->name);
-      target_player->challenge_pending = true;
-      free(target_player->challenge_from);
-      target_player->challenge_from = strdup(player->name);
-      queue_enqueue(job);
-    }
+    send_ok(player, "");
+    job* job = newjob(JOB_CHALLENGE, target, NULL, player);
+    queue_enqueue(job);
   }
 }
 
@@ -373,26 +370,12 @@ static void cmd_accept(player_info* player, char* arg1, char* rest) {
     send_err(player, "Player must be logged in before ACCEPT");
   } else if (arg1 != NULL) {
     send_err(player, "ACCEPT should have no arguments");
-  } else if (player->challenge_pending == false) {
+  } else if (player->duel_status != DUEL_PENDING) {
     send_err(player, "No challenge pending");
   } else {
     send_ok(player, "");
-    job* job1 = newjob(JOB_ACCEPT, NULL, NULL, player->name);
+    job* job1 = newjob(JOB_ACCEPT, NULL, NULL, player);
     queue_enqueue(job1);
-
-    player_info* player2 = playerlist_findplayer(player->challenge_from);
-    int winner = execute_duel(player, player2);
-    job* job2;
-    if (winner == 1) {
-      job2 = newjob(JOB_RESULT, player->name, player2->name, player->name);
-      award_power(player, player2);
-    } else {
-      job2 = newjob(JOB_RESULT, player2->name, player->name, player->name);
-      award_power(player2, player);
-    }
-    queue_enqueue(job2);
-
-    player->challenge_pending = false;
   }
 }
 
@@ -405,13 +388,51 @@ static void cmd_reject(player_info* player, char* arg1, char* rest) {
     send_err(player, "Player must be logged in before REJECT");
   } else if (arg1 != NULL) {
     send_err(player, "REJECT should have no arguments");
-  } else if (player->challenge_pending == false) {
+  } else if (player->duel_status != DUEL_PENDING) {
     send_err(player, "No challenge pending");
   } else {
     send_ok(player, "");
-    job* job = newjob(JOB_REJECT, NULL, NULL, player->name);
+    job* job = newjob(JOB_REJECT, NULL, NULL, player);
     queue_enqueue(job);
-    player->challenge_pending = false;
+  }
+}
+
+/*********************************************************
+ * Helper function to validate the choice made by the player
+ * in the CHOOSE cmd.
+ */
+static int validate_choice(const char* choice) {
+  if ((strcmp(choice, "ROCK") == 0) || (strcmp(choice, "PAPER") == 0) ||
+      (strcmp(choice, "SCISSORS") == 0))
+    return 1;
+  else
+    return 0;
+}
+
+/***************************************************
+ * Handle the CHOOSE command. Takes one argument from "ROCK, PAPER, SCISSORS".
+ * Sends ERR if player does not have an active duel, or if they make an invalid
+ * choice.
+ */
+static void cmd_choose(player_info* player, char* choice, char* rest) {
+  if (player->state != PLAYER_REG) {
+    send_err(player, "Player must be logged in before CHOOSE");
+  } else if (choice == NULL) {
+    send_err(player, "CHOOSE needs one argument.");
+  } else if (player->duel_status != DUEL_ACTIVE) {
+    send_err(player,
+             "You do not have an active duel. If you have a pending duel, they "
+             "must ACCEPT.");
+  } else {
+    if (!validate_choice(choice)) {
+      send_err(player, "Invalid choice. Choose from ROCK, PAPER, or SCISSORS.");
+      return;
+    }
+    send_ok(player, "%s", choice);
+    player->choice = choice;
+
+    job* job = newjob(JOB_CHOICE, NULL, NULL, player);
+    queue_enqueue(job);
   }
 }
 
@@ -474,6 +495,8 @@ void docommand(player_info* player, char* command) {
     cmd_accept(player, arg1, rest);
   } else if (strcmp(cmd, "REJECT") == 0) {
     cmd_reject(player, arg1, rest);
+  } else if (strcmp(cmd, "CHOOSE") == 0) {
+    cmd_choose(player, arg1, rest);
   } else {
     send_err(player, "Unknown command");
   }

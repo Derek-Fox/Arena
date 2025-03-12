@@ -6,7 +6,7 @@
 #ifndef _QUEUE_H
 #define _QUEUE_H
 
-typedef enum {
+typedef enum job_type {
   JOB_DONE,
   JOB_MSG,
   JOB_JOIN,
@@ -14,8 +14,8 @@ typedef enum {
   JOB_CHALLENGE,
   JOB_ACCEPT,
   JOB_REJECT,
-  JOB_RESULT,
-} JobType;
+  JOB_CHOICE,
+} job_type;
 
 // Data types and function prototypes for a queue of jobs structure
 
@@ -29,17 +29,20 @@ typedef struct queue {
 
 /************************************************************************
  * Typedef for jobs, for the notification manager.
- * type: JobType.
+ * type: job_type.
  * to: if MSG, playername of recipient. if JOIN/LEAVE, room number that
- * should receive this notification.
- * content: if MSG, content of message to be sent. if JOIN/LEAVE, NULL.
+ * should receive this notification. if challenge, playername of the target.
+ * content: if MSG, content of message to be sent.
  * origin: for all types, playername who issued this job.
  */
 typedef struct job {
-  JobType type;
-  char* to;
+  job_type type;
+  union {
+    char* player_name;
+    int room;
+  } to;
   char* content;
-  char* origin;
+  player_info* origin;
 } job;
 
 void queue_init();
@@ -48,7 +51,7 @@ job* queue_front();
 job* queue_dequeue_wait();
 void queue_destroy();
 
-job* newjob(JobType type, char* to, char* content, char* origin);
+job* newjob(job_type type, void* to, char* content, player_info* origin);
 void destroyjob(job* job);
 
 #endif
