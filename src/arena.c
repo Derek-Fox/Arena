@@ -157,8 +157,8 @@ void *notif_manager(void *none) {
         break;
 
       case JOB_MSG: {
-        player_info *target = playerlist_findplayer(job->to);
-        player_info *origin = playerlist_findplayer(job->origin);
+        player_info *origin = job->origin;
+        player_info *target = playerlist_findplayer(job->to.player_name);
         if (target != NULL && target->in_room == origin->in_room &&
             target != origin) {
           send_notice(target, "From %s: %s", job->origin, job->content);
@@ -167,8 +167,8 @@ void *notif_manager(void *none) {
       }
 
       case JOB_JOIN: {
-        int newroom = (int)strtol(job->to, NULL, 0);
-        player_info *mover = playerlist_findplayer(job->origin);
+        int newroom = job->to.room;
+        player_info *mover = job->origin;
         int size = playerlist_getsize();
         for (size_t i = 0; i < size; i++) {
           player_info *curr = playerlist_get(i);
@@ -184,8 +184,8 @@ void *notif_manager(void *none) {
       }
 
       case JOB_LEAVE: {
-        int oldroom = (int)strtol(job->to, NULL, 0);
-        player_info *mover = playerlist_findplayer(job->origin);
+        int oldroom = job->to.room;
+        player_info *mover = job->origin;
         int size = playerlist_getsize();
         for (size_t i = 0; i < size; i++) {
           player_info *curr = playerlist_get(i);
@@ -201,8 +201,8 @@ void *notif_manager(void *none) {
       }
 
       case JOB_CHALLENGE: {
-        player_info *challenger = playerlist_findplayer(job->origin);
-        player_info *target = playerlist_findplayer(job->to);
+        player_info *challenger = job->origin;
+        player_info *target = playerlist_findplayer(job->to.player_name);
         if (target != NULL && challenger != target &&
             challenger->in_room == target->in_room) {
           send_notice(
@@ -221,7 +221,7 @@ void *notif_manager(void *none) {
       }
 
       case JOB_ACCEPT: {
-        player_info *accepter = playerlist_findplayer(job->origin);
+        player_info *accepter = job->origin;
         player_info *challenger = accepter->opponent;
         if (challenger != NULL && accepter != challenger &&
             accepter->in_room == challenger->in_room) {
@@ -239,7 +239,7 @@ void *notif_manager(void *none) {
       }
 
       case JOB_REJECT: {
-        player_info *rejecter = playerlist_findplayer(job->origin);
+        player_info *rejecter = job->origin;
         player_info *challenger = rejecter->opponent;
         if (challenger != NULL && rejecter != challenger &&
             rejecter->in_room == challenger->in_room) {
@@ -252,9 +252,9 @@ void *notif_manager(void *none) {
       }
 
       case JOB_CHOICE: {
-        player_info *p1 = playerlist_findplayer(job->origin);
+        player_info *p1 = job->origin;
         player_info *p2 = p1->opponent;
-        if (p1->choice != NULL && p2->choice != NULL) {
+        if (p1->choice != NULL && p2->choice != NULL) { // may cause race condition? never seen it happen but slightly sketch...
           const char *winner = determine_winner(p1, p2);
           send_notice(p1, "Result of your duel with %s: %s wins!", p2->name, winner);
           send_notice(p2, "Result of your duel with %s: %s wins!", p1->name, winner);

@@ -100,63 +100,43 @@ void queue_destroy() {
  * Create a new job struct, fully allocated and initialized with desired
  * values. See struct definition for more info on fields.
  */
-job* newjob(JobType type, char* to, char* content, char* origin) {
-  job* result = NULL;
-  if ((result = malloc(sizeof(job))) == NULL) {
+job* newjob(job_type type, void* to, char* content, player_info* origin) {
+  job* new_job = NULL;
+  if ((new_job = malloc(sizeof(job))) == NULL) {
     perror("malloc job");
     exit(1);
   }
 
-  result->type = type;
+  new_job->type = type;
 
-  if (to != NULL) {
-    char* temp2 = NULL;
-    if ((temp2 = malloc(strlen(to) + 1)) == NULL) {
-      perror("malloc job->to");
-      exit(1);
-    }
-    result->to = temp2;
-    strcpy(result->to, to);
-  } else {
-    result->to = NULL;
+  if (type == JOB_MSG || type == JOB_CHALLENGE) {
+    new_job->to.player_name = (char*)to;
+  } else if (type == JOB_JOIN || type == JOB_LEAVE) {
+    new_job->to.room = *(int*)to;
   }
 
-  if (content != NULL) {  // possible for JOIN/LEAVE commands
-    char* temp3 = NULL;
-    if ((temp3 = malloc(strlen(content) + 1)) == NULL) {
-      perror("malloc job->content");
+  if (content != NULL) {
+    new_job->content = malloc(strlen(content) + 1);
+    if (new_job->content == NULL) {
+      perror("malloc jobcontent");
       exit(1);
     }
-    result->content = temp3;
-    strcpy(result->content, content);
+    strcpy(new_job->content, content);
   } else {
-    result->content = NULL;
+    new_job->content = NULL;
   }
 
-  if (origin != NULL) {
-    char* temp4 = NULL;
-    if ((temp4 = malloc(strlen(origin) + 1)) == NULL) {
-      perror("malloc job->origin");
-      exit(1);
-    }
-    result->origin = temp4;
-    strcpy(result->origin, origin);
-  } else {
-    result->origin = NULL;
-  }
+  new_job->origin = origin;
 
-  return result;
+  return new_job;
 }
 
 /************************************************************************
- * Frees all fields of this job and the job itself.
+ * Frees all necessary fields of this job and the job itself.
  */
 void destroyjob(job* job) {
-  free(job->to);
   if (job->content != NULL) {
     free(job->content);
   }
-  free(job->origin);
-
   free(job);
 }

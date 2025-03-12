@@ -91,7 +91,8 @@ static void cmd_login(player_info* player, char* newname, char* rest) {
       send_ok(player, "Logged in as %s", newname);
 
       /* Notify everyone in the lobby that player just joined. */
-      job* job = newjob(JOB_JOIN, "0", NULL, player->name);
+      int lobby = 0;
+      job* job = newjob(JOB_JOIN, &lobby, NULL, player);
       queue_enqueue(job);
     }
   }
@@ -105,10 +106,7 @@ static void cmd_login(player_info* player, char* newname, char* rest) {
  */
 static void cmd_moveto(player_info* player, char* room, char* rest) {
   char* endptr;
-  int newroom =
-      (int)strtol(room, &endptr, 0);  // convert to int --> fills endptr with
-                                      // first invalid character (if it exists)
-
+  int newroom = (int)strtol(room, &endptr, 0);  // convert to int 
   if (player->state != PLAYER_REG) {
     send_err(player, "Player must be logged in before MOVETO");
   } else if (newroom == player->in_room) {  // must move to different room
@@ -118,13 +116,11 @@ static void cmd_moveto(player_info* player, char* room, char* rest) {
   } else if (*endptr != '\0' || newroom < 0 || newroom > 4) {  // need valid arg
     send_err(player, "Invalid arena number");
   } else {
-    char oldroom[12];  // Save old room BEFORE changing it
-    snprintf(oldroom, sizeof(oldroom), "%d", player->in_room);
-
+    int oldroom =  player->in_room; // save old room before changing it
     player->in_room = newroom;
 
-    job* job1 = newjob(JOB_JOIN, room, NULL, player->name);
-    job* job2 = newjob(JOB_LEAVE, oldroom, NULL, player->name);
+    job* job1 = newjob(JOB_JOIN, &newroom, NULL, player);
+    job* job2 = newjob(JOB_LEAVE, &oldroom, NULL, player);
 
     queue_enqueue(job1);
     queue_enqueue(job2);
@@ -209,7 +205,7 @@ static void cmd_msg(player_info* player, char* target, char* msg) {
     send_err(player, "Message too long. Max length is %d", MAX_MSG_LEN);
   } else {
     send_ok(player, "");
-    job* job = newjob(JOB_MSG, target, msg, player->name);
+    job* job = newjob(JOB_MSG, target, msg, player);
     queue_enqueue(job);
   }
 }
@@ -225,6 +221,8 @@ static void cmd_broadcast(player_info* player, char* msg, char* rest) {
   } else if (msg == NULL) {
     send_err(player, "BROADCAST should have a message");
   } else {
+    /* Need to combine msg and rest, as command is given BROADCAST <msg which might include spaces> 
+    but is parsed into <cmd (BROADCAST)> <first word of msg> <rest of msg> */
     // Calculate the length of the new message
     size_t rest_len =
         (rest != NULL) ? strlen(rest) + 1  // +1 for space between msg and rest
@@ -256,7 +254,7 @@ static void cmd_broadcast(player_info* player, char* msg, char* rest) {
     for (size_t i = 0; i < size; i++) {
       player_info* curr = playerlist_get(i);
       if (curr->in_room == player->in_room) {
-        job* job = newjob(JOB_MSG, curr->name, newmsg, player->name);
+        job* job = newjob(JOB_MSG, curr->name, newmsg, player);
         queue_enqueue(job);
       }
     }
@@ -292,7 +290,7 @@ static void cmd_whoami(player_info* player, char* arg1, char* rest) {
 /************************************************************************
  * Handle the "HELP" command. Takes one optional argument, the command to
  * get help on. If no argument, lists all commands. If argument, gives help
- * on that command.
+ * on that command. TODO: add CHOOSE
  */
 static void cmd_help(player_info* player, char* cmd, char* rest) {
   if (cmd == NULL) {
@@ -354,7 +352,7 @@ static void cmd_challenge(player_info* player, char* target, char* rest) {
              player->opponent->name);
   } else {
     send_ok(player, "");
-    job* job = newjob(JOB_CHALLENGE, target, NULL, player->name);
+    job* job = newjob(JOB_CHALLENGE, target, NULL, player);
     queue_enqueue(job);
   }
 }
@@ -372,7 +370,7 @@ static void cmd_accept(player_info* player, char* arg1, char* rest) {
     send_err(player, "No challenge pending");
   } else {
     send_ok(player, "");
-    job* job1 = newjob(JOB_ACCEPT, NULL, NULL, player->name);
+    job* job1 = newjob(JOB_ACCEPT, NULL, NULL, player);
     queue_enqueue(job1);
   }
 }
@@ -390,7 +388,7 @@ static void cmd_reject(player_info* player, char* arg1, char* rest) {
     send_err(player, "No challenge pending");
   } else {
     send_ok(player, "");
-    job* job = newjob(JOB_REJECT, NULL, NULL, player->name);
+    job* job = newjob(JOB_REJECT, NULL, NULL, player);
     queue_enqueue(job);
   }
 }
@@ -429,7 +427,7 @@ static void cmd_choose(player_info* player, char* choice, char* rest) {
     send_ok(player, "%s", choice);
     player->choice = choice;
 
-    job* job = newjob(JOB_CHOICE, NULL, choice, player->name);
+    job* job = newjob(JOB_CHOICE, NULL, NULL, player);
     queue_enqueue(job);
   }
 }
