@@ -106,7 +106,7 @@ static void cmd_login(player_info* player, char* newname, char* rest) {
  */
 static void cmd_moveto(player_info* player, char* room, char* rest) {
   char* endptr;
-  int newroom = (int)strtol(room, &endptr, 0);  // convert to int 
+  int newroom = (int)strtol(room, &endptr, 0);  // convert to int
   if (player->state != PLAYER_REG) {
     send_err(player, "Player must be logged in before MOVETO");
   } else if (newroom == player->in_room) {  // must move to different room
@@ -116,7 +116,7 @@ static void cmd_moveto(player_info* player, char* room, char* rest) {
   } else if (*endptr != '\0' || newroom < 0 || newroom > 4) {  // need valid arg
     send_err(player, "Invalid arena number");
   } else {
-    int oldroom =  player->in_room; // save old room before changing it
+    int oldroom = player->in_room;  // save old room before changing it
     player->in_room = newroom;
 
     job* job1 = newjob(JOB_JOIN, &newroom, NULL, player);
@@ -221,8 +221,9 @@ static void cmd_broadcast(player_info* player, char* msg, char* rest) {
   } else if (msg == NULL) {
     send_err(player, "BROADCAST should have a message");
   } else {
-    /* Need to combine msg and rest, as command is given BROADCAST <msg which might include spaces> 
-    but is parsed into <cmd (BROADCAST)> <first word of msg> <rest of msg> */
+    /* Need to combine msg and rest, as command is given BROADCAST <msg which
+    might include spaces> but is parsed into <cmd (BROADCAST)> <first word of
+    msg> <rest of msg> */
     // Calculate the length of the new message
     size_t rest_len =
         (rest != NULL) ? strlen(rest) + 1  // +1 for space between msg and rest
@@ -290,7 +291,7 @@ static void cmd_whoami(player_info* player, char* arg1, char* rest) {
 /************************************************************************
  * Handle the "HELP" command. Takes one optional argument, the command to
  * get help on. If no argument, lists all commands. If argument, gives help
- * on that command. TODO: add CHOOSE
+ * on that command.
  */
 static void cmd_help(player_info* player, char* cmd, char* rest) {
   if (cmd == NULL) {
@@ -331,6 +332,10 @@ static void cmd_help(player_info* player, char* cmd, char* rest) {
     } else if (strcmp(cmd, "REJECT") == 0) {
       send_notice(player,
                   "REJECT - reject an incoming challenge from another player");
+    } else if (strcmp(cmd, "CHOOSE") == 0) {
+      send_notice(
+          player,
+          "CHOOSE <ROCK, PAPER, SCISSORS> - choose your move during a duel.");
     } else {
       send_err(player, "Unknown command");
     }

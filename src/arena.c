@@ -130,7 +130,7 @@ const char *determine_winner(player_info* p1, player_info* p2) {
   const char *choice2 = p2->choice;
 
   if (strcmp(choice1, choice2) == 0) {
-    return "Nobody";
+    return "Nobody"; // TODO: I hate this
   }
 
   if ((strcmp(choice1, "ROCK") == 0 && strcmp(choice2, "SCISSORS") == 0) ||
@@ -225,6 +225,9 @@ void *notif_manager(void *none) {
         player_info *challenger = accepter->opponent;
         if (challenger != NULL && accepter != challenger &&
             accepter->in_room == challenger->in_room) {
+          send_notice(accepter,
+                      "You have accepted the challenge from %s. Let the battle begin!",
+                      challenger->name);
           send_notice(challenger,
                       "%s has accepted your challenge. Let the battle begin!",
                       accepter->name);
