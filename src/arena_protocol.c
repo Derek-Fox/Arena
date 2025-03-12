@@ -350,7 +350,8 @@ static void cmd_challenge(player_info* player, char* target, char* rest) {
   } else if (target == NULL || rest != NULL) {
     send_err(player, "CHALLENGE should have one argument");
   } else if (player->duel_status == DUEL_PENDING) {
-    send_err(player, "Already have pending challenge with %s", player->opponent_name);
+    send_err(player, "Already have pending challenge with %s",
+             player->opponent_name);
   } else {
     send_ok(player, "");
     job* job = newjob(JOB_CHALLENGE, target, NULL, player->name);
@@ -394,34 +395,42 @@ static void cmd_reject(player_info* player, char* arg1, char* rest) {
   }
 }
 
+/*********************************************************
+ * Helper function to validate the choice made by the player
+ * in the CHOOSE cmd.
+ */
+static int validate_choice(const char* choice) {
+  if ((strcmp(choice, "ROCK") == 0) || (strcmp(choice, "PAPER") == 0) ||
+      (strcmp(choice, "SCISSORS") == 0))
+    return 1;
+  else
+    return 0;
+}
 
+/***************************************************
+ * Handle the CHOOSE command. Takes one argument from "ROCK, PAPER, SCISSORS".
+ * Sends ERR if player does not have an active duel, or if they make an invalid
+ * choice.
+ */
 static void cmd_choose(player_info* player, char* choice, char* rest) {
   if (player->state != PLAYER_REG) {
     send_err(player, "Player must be logged in before CHOOSE");
   } else if (choice == NULL) {
     send_err(player, "CHOOSE needs one argument.");
   } else if (player->duel_status != DUEL_ACTIVE) {
-    send_err(player, "You do not have an active duel. If you have a pending duel, they must ACCEPT.");
+    send_err(player,
+             "You do not have an active duel. If you have a pending duel, they "
+             "must ACCEPT.");
   } else {
-    RPS rps = parse_choice(choice);
-    if (rps == NULL) {
-      send_err(player, "Invalid choice. Choose from rock, paper, or scissors.");
+    if (!validate_choice(choice)) {
+      send_err(player, "Invalid choice. Choose from ROCK, PAPER, or SCISSORS.");
       return;
     }
     send_ok(player, "%s", choice);
-    player->choice = rps;
-  }
-}
+    player->choice = choice;
 
-static RPS parse_choice(const char* choice) {
-  if (strcmp(choice, "rock") == 0) {
-    return RPS_ROCK;
-  } else if (strcmp(choice, "paper") == 0) {
-    return RPS_PAPER;
-  } else if (strcmp(choice, "scissors") == 0) {
-    return RPS_SCISSORS;
-  } else {
-    return NULL;
+    job* job = newjob(JOB_CHOICE, NULL, choice, player->name);
+    queue_enqueue(job);
   }
 }
 

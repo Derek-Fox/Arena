@@ -19,13 +19,6 @@ typedef enum {
   DUEL_ACTIVE,
 } DuelStatus;
 
-// Enum for choices in a duel
-typedef enum {
-  RPS_ROCK,
-  RPS_PAPER,
-  RPS_SCISSORS,
-} RPS;
-
 // The struct to keep track of all information about a player in
 // the system.
 
@@ -34,7 +27,7 @@ typedef struct player_info {
   int state;
   int power;
   DuelStatus duel_status;
-  RPS choice; // Latest duel choice - meaningless if duel_status not DUEL_ACTIVE
+  char* choice; // Latest duel choice - meaningless if duel_status not DUEL_ACTIVE
   char* opponent_name;  // name of challenger - meaningless if duel_status DUEL_NONE
   int in_room;
   FILE* fp_send;

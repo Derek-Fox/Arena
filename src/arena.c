@@ -19,7 +19,6 @@
 #include <unistd.h>
 
 #include "arena_protocol.h"
-#include "duel.h"
 #include "player.h"
 #include "playerlist.h"
 #include "queue.h"
@@ -126,6 +125,23 @@ void *handle_player(void *newplayer) {
   pthread_exit(NULL);
 }
 
+const char *determine_winner(player_info* p1, player_info* p2) {
+  char *choice1 = p1->choice;
+  char *choice2 = p2->choice;
+
+  if (strcmp(choice1, choice2) == 0) {
+    return "Nobody";
+  }
+
+  if ((strcmp(choice1, "ROCK") == 0 && strcmp(choice2, "SCISSORS") == 0) ||
+      (strcmp(choice1, "PAPER") == 0 && strcmp(choice2, "ROCK") == 0) ||
+      (strcmp(choice1, "SCISSORS") == 0 && strcmp(choice2, "PAPER") == 0)) {
+    return p1->name;
+  } else {
+    return p2->name;
+  }
+}
+
 /************************************************************************
  * Notification manager, which waits for jobs to be passed onto it and
  * then executes them.
@@ -218,8 +234,8 @@ void *notif_manager(void *none) {
           accepter->duel_status = DUEL_ACTIVE;
           challenger->duel_status = DUEL_ACTIVE;
 
-          send_notice(challenger, "Please CHOOSE rock, paper, or scissors.");
-          send_notice(accepter, "Please CHOOSE rock, paper, or scissors.");
+          send_notice(challenger, "Please CHOOSE ROCK, PAPER, or SCISSORS.");
+          send_notice(accepter, "Please CHOOSE ROCK, PAPER, or SCISSORS.");
         }
         break;
       }
@@ -238,17 +254,24 @@ void *notif_manager(void *none) {
         break;
       }
 
-      case JOB_RESULT: {
-        player_info *winner = playerlist_findplayer(job->to);
-        player_info *loser = playerlist_findplayer(job->content);
-        send_notice(winner, "%s has defeated %s in the duel!", winner->name,
-                    loser->name);
-        send_notice(loser, "%s has defeated %s in the duel!", winner->name,
-                    loser->name);
+      case JOB_CHOICE: {
+        player_info *p1 = playerlist_findplayer(job->origin);
+        player_info *p2 = playerlist_findplayer(p1->opponent_name);
+        if (p1->choice != NULL && p2->choice != NULL) {
+          const char *winner = determine_winner(p1, p2);
+          send_notice(p1, "Result of your duel with %s: %s wins!", p2->name, winner);
+          send_notice(p2, "Result of your duel with %s: %s wins!", p1->name, winner);
+
+          p1->choice = NULL;
+          p1->duel_status = DUEL_NONE;
+
+          p2->choice = NULL;
+          p2->duel_status = DUEL_NONE;
+        }
         break;
       }
 
-      default:
+      default: // unreachable unless i made a typo!
         break;
     }
 

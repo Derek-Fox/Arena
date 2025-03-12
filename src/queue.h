@@ -14,7 +14,7 @@ typedef enum {
   JOB_CHALLENGE,
   JOB_ACCEPT,
   JOB_REJECT,
-  JOB_RESULT,
+  JOB_CHOICE,
 } JobType;
 
 // Data types and function prototypes for a queue of jobs structure
