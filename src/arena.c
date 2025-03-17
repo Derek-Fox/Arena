@@ -21,7 +21,7 @@
 #include "arena_protocol.h"
 #include "player.h"
 #include "playerlist.h"
-#include "queue.h"
+#include "notif_manager.h"
 
 #define SERVER_PORT "8080"
 
@@ -125,162 +125,6 @@ void *handle_player(void *newplayer) {
   pthread_exit(NULL);
 }
 
-const char *determine_winner(player_info* p1, player_info* p2) {
-  const char *choice1 = p1->choice;
-  const char *choice2 = p2->choice;
-
-  if (strcmp(choice1, choice2) == 0) {
-    return "Nobody"; // TODO: I hate this
-  }
-
-  if ((strcmp(choice1, "ROCK") == 0 && strcmp(choice2, "SCISSORS") == 0) ||
-      (strcmp(choice1, "PAPER") == 0 && strcmp(choice2, "ROCK") == 0) ||
-      (strcmp(choice1, "SCISSORS") == 0 && strcmp(choice2, "PAPER") == 0)) {
-    return p1->name;
-  } else {
-    return p2->name;
-  }
-}
-
-/************************************************************************
- * Notification manager, which waits for jobs to be passed onto it and
- * then executes them.
- */
-void *notif_manager(void *none) {
-  while (1) {
-    job *job = queue_dequeue_wait();
-
-    switch (job->type) {
-      case JOB_DONE:
-        destroyjob(job);
-        pthread_exit(NULL);
-        break;
-
-      case JOB_MSG: {
-        player_info *origin = job->origin;
-        player_info *target = playerlist_findplayer(job->to.player_name);
-        if (target != NULL && target->in_room == origin->in_room &&
-            target != origin) {
-          send_notice(target, "From %s: %s", job->origin, job->content);
-        }
-        break;
-      }
-
-      case JOB_JOIN: {
-        int newroom = job->to.room;
-        player_info *mover = job->origin;
-        int size = playerlist_getsize();
-        for (size_t i = 0; i < size; i++) {
-          player_info *curr = playerlist_get(i);
-          if (curr->in_room == newroom && curr->state == PLAYER_REG) {
-            if (newroom == 0) {
-              send_notice(curr, "%s has joined the lobby", mover->name);
-            } else {
-              send_notice(curr, "%s has joined arena %d", mover->name, newroom);
-            }
-          }
-        }
-        break;
-      }
-
-      case JOB_LEAVE: {
-        int oldroom = job->to.room;
-        player_info *mover = job->origin;
-        int size = playerlist_getsize();
-        for (size_t i = 0; i < size; i++) {
-          player_info *curr = playerlist_get(i);
-          if (curr->in_room == oldroom) {
-            if (oldroom == 0) {
-              send_notice(curr, "%s has left the lobby", mover->name);
-            } else {
-              send_notice(curr, "%s has left arena %d", mover->name, oldroom);
-            }
-          }
-        }
-        break;
-      }
-
-      case JOB_CHALLENGE: {
-        player_info *challenger = job->origin;
-        player_info *target = playerlist_findplayer(job->to.player_name);
-        if (target != NULL && challenger != target &&
-            challenger->in_room == target->in_room) {
-          send_notice(
-              target,
-              "%s has challenged you to a duel. Please ACCEPT or REJECT",
-              challenger->name);
-          
-          target->duel_status = DUEL_PENDING;
-          target->opponent = challenger;
-
-          challenger->duel_status = DUEL_PENDING;
-          challenger->opponent = target;
-          
-        }
-        break;
-      }
-
-      case JOB_ACCEPT: {
-        player_info *accepter = job->origin;
-        player_info *challenger = accepter->opponent;
-        if (challenger != NULL && accepter != challenger &&
-            accepter->in_room == challenger->in_room) {
-          send_notice(accepter,
-                      "You have accepted the challenge from %s. Let the battle begin!",
-                      challenger->name);
-          send_notice(challenger,
-                      "%s has accepted your challenge. Let the battle begin!",
-                      accepter->name);
-
-          accepter->duel_status = DUEL_ACTIVE;
-          send_notice(accepter, "Please CHOOSE ROCK, PAPER, or SCISSORS.");
-          
-          challenger->duel_status = DUEL_ACTIVE;
-          send_notice(challenger, "Please CHOOSE ROCK, PAPER, or SCISSORS.");
-        }
-        break;
-      }
-
-      case JOB_REJECT: {
-        player_info *rejecter = job->origin;
-        player_info *challenger = rejecter->opponent;
-        if (challenger != NULL && rejecter != challenger &&
-            rejecter->in_room == challenger->in_room) {
-          send_notice(challenger, "%s has rejected your challenge.",
-                      rejecter->name);
-          rejecter->duel_status = DUEL_NONE;
-          challenger->duel_status= DUEL_NONE;
-        }
-        break;
-      }
-
-      case JOB_CHOICE: {
-        player_info *p1 = job->origin;
-        player_info *p2 = p1->opponent;
-        if (p1->choice != NULL && p2->choice != NULL) { // may cause race condition? never seen it happen but slightly sketch...
-          const char *winner = determine_winner(p1, p2);
-          send_notice(p1, "Result of your duel with %s: %s wins!", p2->name, winner);
-          send_notice(p2, "Result of your duel with %s: %s wins!", p1->name, winner);
-
-          p1->choice = NULL;
-          p1->duel_status = DUEL_NONE;
-
-          p2->choice = NULL;
-          p2->duel_status = DUEL_NONE;
-        }
-        break;
-      }
-
-      default: // unreachable unless i made a typo!
-        break;
-    }
-
-    destroyjob(job);
-  }
-
-  pthread_exit(NULL);
-}
-
 /************************************************************************
  * Signal handler for SIGINT to allow server to exit more gracefully.
  * TODO: is there a good way to also kill all active player threads using this
@@ -296,7 +140,7 @@ void terminate_server(int sig) {
 }
 
 /************************************************************************
- * Part 3 main: initializes playerlist, starts notification manager,
+ * Initializes playerlist, starts notification manager,
  * sets up signal handler, starts TCP server and waits for connections.
  * Then creates threads to handle each connection.
  */
@@ -323,8 +167,8 @@ int main(int argc, char *argv[]) {
   queue_init();
   pthread_t notif;
   int pret = 0;
-  if ((pret = pthread_create(&notif, NULL, notif_manager, NULL)) < 0) {
-    perror("pthread_create");
+  if ((pret = pthread_create(&notif, NULL, &notif_main, NULL)) < 0) {
+    perror("pthread_create notif manager");
     exit(1);
   }
 
@@ -343,12 +187,10 @@ int main(int argc, char *argv[]) {
     pret = 0;
     if ((pret = pthread_create(&new_thread, NULL, &handle_player, newplayer)) <
         0) {
-      perror("pthread_create");
+      perror("pthread_create player thread");
       exit(1);
     }
   }
-
-  pthread_join(notif, NULL);
 
   queue_destroy();
   playerlist_destroy();

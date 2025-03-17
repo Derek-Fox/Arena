@@ -2,7 +2,7 @@ CFLAGS = -Wall -g -pthread
 
 PROGRAMS = arena
 
-arena_OBJS = arena.o util.o arena_protocol.o player.o alist.o playerlist.o queue.o 
+arena_OBJS = arena.o util.o arena_protocol.o player.o alist.o playerlist.o queue.o notif_manager.o
 
 OBJS_DIR = build
 BINS_DIR = bin
