@@ -168,6 +168,7 @@ int main(int argc, char *argv[]) {
   pthread_t notif;
   int pret = 0;
   if ((pret = pthread_create(&notif, NULL, &notif_main, NULL)) < 0) {
+    // TODO: This is causing a memory leak
     perror("pthread_create notif manager");
     exit(1);
   }
