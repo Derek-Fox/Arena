@@ -14,12 +14,14 @@ static void handle_job_challenge(job* job);
 static void handle_job_accept(job* job);
 static void handle_job_reject(job* job);
 static void handle_job_choice(job* job);
+static void handle_job_broadcast(job* job);
 
 // Array of function pointers from above
-static void (*job_handlers[])(job*) = {handle_job_msg,    handle_job_join,
-                                       handle_job_leave,  handle_job_challenge,
-                                       handle_job_accept, handle_job_reject,
-                                       handle_job_choice};
+static void (*job_handlers[])(job*) = {
+    handle_job_msg,       handle_job_join,      handle_job_leave,
+    handle_job_challenge, handle_job_accept,    handle_job_reject,
+    handle_job_choice,    handle_job_broadcast,
+};
 
 /************************************
  * Read a job off the queue when it arrives and call the appropriate handler
@@ -45,15 +47,15 @@ static void notif_loop() {
 static void handle_job_msg(job* job) {
   player_info* from = job->origin;
   player_info* to = playerlist_findplayer(job->to.player_name);
-  if (to ==
-      NULL) {  // only possible if there is a bug. i.e. user cannot cause this
+  if (to == NULL) {
     fprintf(stderr, "Malformed job on queue, type MSG. Origin: %s", from->name);
+  } else if (from == to) {
+    send_err(from, "Cannot MSG yourself. Stop.");
   } else if (to->state != PLAYER_REG) {
-    send_notice(from, "%s does not match the name of a logged in player.",
-                to->name);
+    send_err(from, "%s does not match the name of a logged in player.",
+             to->name);
   } else if (to->in_room != from->in_room) {
-    send_notice(from, "%s is not in your arena, cannot send message.",
-                to->name);
+    send_err(from, "%s is not in your arena, cannot send message.", to->name);
   } else {
     send_notice(to, "From %s: %s", job->origin->name, job->content);
   }
@@ -87,13 +89,13 @@ static void handle_job_challenge(job* job) {
     fprintf(stderr, "Malformed job on queue, type CHALLENGE. Origin: %s",
             challenger->name);
   } else if (target == challenger) {
-    send_notice(challenger, "Cannot challenge yourself. Stop.");
+    send_err(challenger, "Cannot challenge yourself. Stop.");
   } else if (target->state != PLAYER_REG) {
-    send_notice(challenger, "%s does not match the name of a logged in player.",
-                target->name);
+    send_err(challenger, "%s does not match the name of a logged in player.",
+             target->name);
   } else if (target->in_room != challenger->in_room) {
-    send_notice(challenger, "%s is not in your arena, cannot send challenge.",
-                target->name);
+    send_err(challenger, "%s is not in your arena, cannot send challenge.",
+             target->name);
   } else {
     send_notice(target,
                 "%s has challenged you to a duel. Please ACCEPT or REJECT",
@@ -113,9 +115,9 @@ static void handle_job_accept(job* job) {
     fprintf(stderr, "Malformed job on queue, type ACCEPT. Origin: %s",
             accepter->name);
   } else if (challenger->in_room != accepter->in_room) {
-    send_notice(accepter,
-                "%s has left your arena! Cannot accept their challenge. Move "
-                "to their arena and try again");
+    send_err(accepter,
+             "%s has left your arena! Cannot accept their challenge. Move "
+             "to their arena and try again");
   } else {
     send_notice(
         accepter,
@@ -179,6 +181,18 @@ static void handle_job_choice(job* job) {
   p1->duel_status = DUEL_NONE;
   p2->choice = NULL;
   p2->duel_status = DUEL_NONE;
+}
+
+static void handle_job_broadcast(job* job) {
+  // iterate over all players. if they are in the same arena, send a MSG
+  player_info* from = job->origin;
+  int size = playerlist_getsize();
+  for (size_t i = 0; i < size; i++) {
+    player_info* curr = playerlist_get(i);
+    if (curr->in_room == from->in_room && from != curr) {
+      send_notice(curr, "From %s: %s", from->name, job->content);
+    }
+  }
 }
 
 /************************

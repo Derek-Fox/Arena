@@ -6,6 +6,7 @@
 #include "player.h"
 
 void send_notice(player_info* player, const char* format, ...);
+void send_err(player_info* player, const char* format, ...);
 void docommand(player_info* player, char* command);
 
 #endif  // _ARENA_COMMANDS_H

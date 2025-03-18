@@ -85,7 +85,7 @@ static void cmd_login(player_info* player, char* newname, char* rest) {
     send_err(player, "LOGIN should have one argument");
   } else {  // name valid format, but need to check if in use
     if (playerlist_changeplayername(player, newname) < 0) {  // duplicate name
-      send_err(player, "Player already logged in as %s", newname);
+      send_err(player, "Another player already logged in as %s", newname);
     } else {  // finally all good
       player->state = PLAYER_REG;
       send_ok(player, "Logged in as %s", newname);
@@ -250,15 +250,7 @@ static void cmd_broadcast(player_info* player, char* msg, char* rest) {
     }
 
     send_ok(player, "");
-    // iterate over all players. if they are in the same arena, send a MSG
-    int size = playerlist_getsize();
-    for (size_t i = 0; i < size; i++) {
-      player_info* curr = playerlist_get(i);
-      if (curr->in_room == player->in_room) {
-        job* job = newjob(JOB_MSG, curr->name, newmsg, player);
-        queue_enqueue(job);
-      }
-    }
+    queue_enqueue(newjob(JOB_BROADCAST, NULL, newmsg, player));
 
     free(newmsg);
   }
