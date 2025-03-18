@@ -270,6 +270,7 @@ static void cmd_broadcast(player_info* player, char* msg, char* rest) {
  * removed from the playerlist and their session ending).
  */
 static void cmd_bye(player_info* player, char* arg1, char* rest) {
+  if (arg1 == NULL) arg1 = "";
   send_ok(player, "%s", arg1);
   player->state = PLAYER_DONE;
 }
