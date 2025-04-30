@@ -289,7 +289,7 @@ static void cmd_whoami(player_info* player, char* arg1, char* rest) {
 static void cmd_help(player_info* player, char* cmd, char* rest) {
   if (cmd == NULL) {
     send_notice(player,
-                "Commands: LOGIN, MOVETO, BYE, MSG, STAT, LIST, BROADCAST, "
+                "Commands: LOGIN, MOVETO, BYE, MSG, STAT, FIND, LIST, BROADCAST, "
                 "HELP, WHOAMI, CHALLENGE, ACCEPT, REJECT, CHOOSE");
   } else {
     if (strcmp(cmd, "LOGIN") == 0) {
@@ -302,7 +302,9 @@ static void cmd_help(player_info* player, char* cmd, char* rest) {
       send_notice(player,
                   "MSG <target> <message> - send a message to another player");
     } else if (strcmp(cmd, "STAT") == 0) {
-      send_notice(player, "STAT - get the current arena number");
+      send_notice(player, "STAT - get your current arena number");
+    } else if (strcmp(cmd, "FIND") == 0) {
+      send_notice(player, "FIND <player> - get the arena number of another player");
     } else if (strcmp(cmd, "LIST") == 0) {
       send_notice(player, "LIST - list all players in the current arena");
     } else if (strcmp(cmd, "BROADCAST") == 0) {
@@ -431,6 +433,18 @@ static void cmd_choose(player_info* player, char* choice, char* rest) {
   }
 }
 
+static void cmd_find(player_info* player, char* target, char* rest) {
+  if (player->state != PLAYER_REG) {
+    send_err(player, "Player must be logged in before CHOOSE");
+  } else if (target == NULL) {
+    send_err(player, "FIND needs one argument.");
+  } else {
+    send_ok(player, "");
+    job* job = newjob(JOB_FIND, target, NULL, player);
+    queue_enqueue(job);
+  }
+}
+
 /************************************************************************
  * Parses and performs the actions in the line of text (command and
  * optionally arguments) passed in as "command".
@@ -492,6 +506,8 @@ void docommand(player_info* player, char* command) {
     cmd_reject(player, arg1, rest);
   } else if (strcmp(cmd, "CHOOSE") == 0) {
     cmd_choose(player, arg1, rest);
+  } else if (strcmp(cmd, "FIND") == 0) {
+    cmd_find(player, arg1, rest);
   } else {
     send_err(player, "Unknown command");
   }

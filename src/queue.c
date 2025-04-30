@@ -109,7 +109,7 @@ job* newjob(job_type type, void* to, char* content, player_info* origin) {
 
   new_job->type = type;
 
-  if (type == JOB_MSG || type == JOB_CHALLENGE) {
+  if (type == JOB_MSG || type == JOB_CHALLENGE || type == JOB_FIND) {
     new_job->to.player_name = (char*)to;
   } else if (type == JOB_JOIN || type == JOB_LEAVE) {
     new_job->to.room = *(int*)to;

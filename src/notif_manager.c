@@ -15,12 +15,13 @@ static void handle_job_accept(job* job);
 static void handle_job_reject(job* job);
 static void handle_job_choice(job* job);
 static void handle_job_broadcast(job* job);
+static void handle_job_find(job* job);
 
 // Array of function pointers from above
 static void (*job_handlers[])(job*) = {
     handle_job_msg,       handle_job_join,      handle_job_leave,
     handle_job_challenge, handle_job_accept,    handle_job_reject,
-    handle_job_choice,    handle_job_broadcast,
+    handle_job_choice,    handle_job_broadcast, handle_job_find,
 };
 
 /************************************
@@ -190,6 +191,21 @@ static void handle_job_broadcast(job* job) {
     player_info* curr = playerlist_get(i);
     if (curr->in_room == from->in_room && from != curr) {
       send_notice(curr, "From %s: %s", from->name, job->content);
+    }
+  }
+}
+
+static void handle_job_find(job* job) {
+  player_info* from = job->origin;
+  player_info* target = playerlist_findplayer(job->to.player_name);
+  if (target == NULL) {
+    send_err(from, "%s is not a logged in player.", job->to.player_name);
+  } else {
+    int room = target->in_room;
+    if (room == ROOM_LOBBY) {
+      send_notice(from, "lobby");
+    } else {
+      send_notice(from, "%d", room);
     }
   }
 }
