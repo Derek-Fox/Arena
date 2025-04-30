@@ -41,6 +41,14 @@ The server will respond to each command with a status message. The status messag
     - User must be logged in.
     - Server will respond with `OK` followed by the number of the arena the user is currently in.
 
+### FIND
+- **Description**: Find the arena that a specific player is currently in.
+- **Usage**: `FIND <playername>`
+- **Notes**: 
+    - User must be logged in.
+    - If the playername is not a valid, logged in player, the server will respond with an `ERR`.
+    - Server will respond with `OK` followed by the arena number the specified player is in.
+
 ### LIST
 - **Description**: List all users currently in the arena.
 - **Usage**: `LIST`
