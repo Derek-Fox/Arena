@@ -122,3 +122,10 @@ The server will respond to each command with a status message. The status messag
     - User must have an active duel.
     - Server will respond with `OK`.
     - If your opponent has also made their choice, the result of the duel will be determined.
+ 
+# Installation/Usage:
+0. Clone the code with `git clone https://github.com/Derek-Fox/Arena.git`
+1. Generate the executable with `make`
+2. Run the server with `./bin/arena`
+3. In another terminal, connect to the server by running `nc localhost 8080`
+4. Begin to send commands using the protocol above!
