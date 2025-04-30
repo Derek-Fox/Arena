@@ -3,6 +3,8 @@
 #ifndef _ARENA_COMMANDS_H
 #define _ARENA_COMMANDS_H
 
+#define ROOM_LOBBY 0
+
 #include "player.h"
 
 void send_notice(player_info* player, const char* format, ...);

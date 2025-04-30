@@ -137,7 +137,7 @@ static void cmd_stat(player_info* player, char* arg1, char* rest) {
   } else if (arg1 != NULL) {  // need no args
     send_err(player, "STAT should have no arguments");
   } else {  // all good
-    if (player->in_room == 0) {
+    if (player->in_room == ROOM_LOBBY) {
       send_ok(player, "lobby");
     } else {
       send_ok(player, "%d", player->in_room);
@@ -290,7 +290,7 @@ static void cmd_help(player_info* player, char* cmd, char* rest) {
   if (cmd == NULL) {
     send_notice(player,
                 "Commands: LOGIN, MOVETO, BYE, MSG, STAT, LIST, BROADCAST, "
-                "HELP, WHOAMI, CHALLENGE, ACCEPT, REJECT");
+                "HELP, WHOAMI, CHALLENGE, ACCEPT, REJECT, CHOOSE");
   } else {
     if (strcmp(cmd, "LOGIN") == 0) {
       send_notice(player, "LOGIN <name> - log in with a name");
@@ -347,6 +347,8 @@ static void cmd_challenge(player_info* player, char* target, char* rest) {
   } else if (player->duel_status == DUEL_PENDING) {
     send_err(player, "Already have pending challenge with %s",
              player->opponent->name);
+  } else if (player->in_room == ROOM_LOBBY) {
+    send_err(player, "No fighting in the lobby!");
   } else {
     send_ok(player, "");
     job* job = newjob(JOB_CHALLENGE, target, NULL, player);

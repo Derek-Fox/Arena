@@ -48,12 +48,11 @@ static void handle_job_msg(job* job) {
   player_info* from = job->origin;
   player_info* to = playerlist_findplayer(job->to.player_name);
   if (to == NULL) {
-    fprintf(stderr, "Malformed job on queue, type MSG. Origin: %s", from->name);
+    send_err(from, "Cannot find player %s.", job->to.player_name);
   } else if (from == to) {
     send_err(from, "Cannot MSG yourself. Stop.");
   } else if (to->state != PLAYER_REG) {
-    send_err(from, "%s does not match the name of a logged in player.",
-             to->name);
+    send_err(from, "%s is not logged in.", to->name);  // should be impossible?
   } else if (to->in_room != from->in_room) {
     send_err(from, "%s is not in your arena, cannot send message.", to->name);
   } else {
@@ -67,7 +66,7 @@ static void join_leave_helper(int room, const char* mover_name,
   for (size_t i = 0; i < size; i++) {
     player_info* curr = playerlist_get(i);
     if (curr->in_room != room || curr->state != PLAYER_REG) continue;
-    if (room == 0)
+    if (room == ROOM_LOBBY)
       send_notice(curr, "%s has %s the lobby.", mover_name, join_leave);
     else
       send_notice(curr, "%s has %s arena %d.", mover_name, join_leave, room);
