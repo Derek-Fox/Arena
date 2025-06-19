@@ -148,13 +148,6 @@ int main(int argc, char *argv[]) {
   /* Set up global playerlist */
   playerlist_init();
 
-  /* Set up server to start accepting connections */
-  int sock_fd = create_listener(SERVER_PORT);
-  if (sock_fd < 0) {
-    fprintf(stderr, "Server setup failed.\n");
-    exit(1);
-  }
-
   /* Set up signal handler to handle SIGINT so resources can be freed when
    * program exits */
   struct sigaction sa;
@@ -169,6 +162,13 @@ int main(int argc, char *argv[]) {
   int pret = 0;
   if ((pret = pthread_create(&notif, NULL, &notif_main, NULL)) < 0) {
     perror("pthread_create notif manager");
+    exit(1);
+  }
+
+  /* Set up server to start accepting connections */
+  int sock_fd = create_listener(SERVER_PORT);
+  if (sock_fd < 0) {
+    fprintf(stderr, "Server setup failed.\n");
     exit(1);
   }
 

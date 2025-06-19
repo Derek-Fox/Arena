@@ -107,7 +107,6 @@ static void handle_job_challenge(job* job) {
   }
 }
 
-// TODO: finish this and all other job functions
 static void handle_job_accept(job* job) {
   player_info* accepter = job->origin;
   player_info* challenger = accepter->opponent;
